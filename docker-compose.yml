@@ -1,0 +1,42 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: synapse-db
+    environment:
+      POSTGRES_DB: synapse_db
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: synapse_dev_2026
+    ports:
+      - "5433:5432"
+    volumes:
+      - synapse_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse -d synapse_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: synapse-backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://synapse:synapse_dev_2026@db:5432/synapse_db
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_PRIMARY_MODEL: llama-3.3-70b-versatile
+      GROQ_FAST_MODEL: llama-3.1-8b-instant
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+
+volumes:
+  synapse_pgdata:
+
