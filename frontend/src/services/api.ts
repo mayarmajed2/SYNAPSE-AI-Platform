@@ -2,9 +2,16 @@
  * SYNAPSE API Client
  */
 
-const API_BASE = "http://127.0.0.1:8000/api/v1";
+import { isDemoMode, getDemoResponse } from "./demoData";
+
+const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || "http://127.0.0.1:8000";
+const API_BASE = `${API_ORIGIN}/api/v1`;
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  if (isDemoMode()) {
+    return getDemoResponse(endpoint, options.method || "GET") as T;
+  }
+
   const url = `${API_BASE}${endpoint}`;
   const headers = {
     "Content-Type": "application/json",

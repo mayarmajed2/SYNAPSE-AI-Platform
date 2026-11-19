@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { isDemoMode } from "../services/demoData";
 
 export interface WSEvent {
   event: string;
@@ -18,6 +19,11 @@ export function useWebSocket(projectId?: string, onEvent?: (event: WSEvent) => v
   }, [onEvent]);
 
   const connect = useCallback(() => {
+    if (isDemoMode()) {
+      setIsConnected(true);
+      return;
+    }
+
     // Clear any pending reconnect timer
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -25,7 +31,8 @@ export function useWebSocket(projectId?: string, onEvent?: (event: WSEvent) => v
     }
 
     const channel = projectId ? `projects/${projectId}` : "global";
-    const url = `ws://127.0.0.1:8000/ws/${channel}`;
+    const wsOrigin = import.meta.env.VITE_WS_ORIGIN || "ws://127.0.0.1:8000";
+    const url = `${wsOrigin}/ws/${channel}`;
 
     try {
       const socket = new WebSocket(url);
