@@ -116,14 +116,11 @@ const DEMO_ANALYTICS = {
   total_projects: 1,
   active_projects: 0,
   completed_projects: 1,
-  total_tasks: 9,
-  completed_tasks: 9,
-  success_rate: 100,
-  avg_execution_time_ms: 120,
-  total_tokens: 3495,
-  prompt_tokens: 2270,
-  completion_tokens: 1225,
-  total_cost_usd: 0.0025,
+  total_agent_executions: 9,
+  success_rate: 100.0,
+  average_execution_time_seconds: 0.12,
+  total_tokens_consumed: 3495,
+  estimated_ai_cost_usd: 0.0025,
 };
 
 export function isDemoMode(): boolean {
@@ -192,11 +189,13 @@ export function getDemoResponse(endpoint: string, method = "GET"): any {
   if (path.startsWith("/security/")) return DEMO_SECURITY_SCANS;
   if (path.startsWith("/approvals")) return [];
   if (path === "/analytics/overview") return DEMO_ANALYTICS;
-  if (path === "/analytics/agents") return DEMO_AGENTS;
+  if (path === "/analytics/agents") {
+    return DEMO_AGENTS.map((a) => ({ ...a, agent_id: a.id, avatar_url: null }));
+  }
   if (path === "/analytics/usage") {
     return [
-      { id: "u1", agent_name: "Marcus Aurelius", model: "llama-3.3-70b-versatile", prompt_tokens: 920, completion_tokens: 510, total_tokens: 1430, estimated_cost_usd: 0.0011, latency_ms: 920, created_at: NOW },
-      { id: "u2", agent_name: "David Thorne", model: "llama-3.3-70b-versatile", prompt_tokens: 1350, completion_tokens: 715, total_tokens: 2065, estimated_cost_usd: 0.0014, latency_ms: 1150, created_at: NOW },
+      { model: "llama-3.3-70b-versatile", provider: "groq", prompt_tokens: 1620, completion_tokens: 890, total_tokens: 2510, cost_usd: 0.0021, call_count: 6 },
+      { model: "llama-3.1-8b-instant", provider: "groq", prompt_tokens: 650, completion_tokens: 335, total_tokens: 985, cost_usd: 0.0004, call_count: 3 },
     ];
   }
   if (path.startsWith("/audit/logs")) {
