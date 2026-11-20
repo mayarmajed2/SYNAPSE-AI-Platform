@@ -220,13 +220,58 @@ export function getDemoResponse(endpoint: string, method = "GET"): any {
       health_score: 96,
     };
   }
+  if (path.startsWith("/auth/")) {
+    const demoUser = {
+      id: "demo-user-01",
+      email: "demo@synapse.ai",
+      full_name: "Principal Engineer",
+      role: "admin",
+      is_active: true,
+      workspace: { id: "demo-ws-01", name: "SYNAPSE HQ", slug: "default-workspace", plan: "pro" },
+    };
+    if (path === "/auth/me") return demoUser;
+    return { access_token: "demo-jwt-token", token_type: "bearer", user: demoUser };
+  }
+  if (path.startsWith("/settings")) {
+    return {
+      workspace_name: "SYNAPSE HQ",
+      primary_model: "llama-3.3-70b-versatile",
+      fast_model: "llama-3.1-8b-instant",
+      max_retries: 3,
+      sandbox_timeout_seconds: 30,
+      require_approval_gates: true,
+      auto_run_security_scan: true,
+      plan: "pro",
+      groq_configured: true,
+    };
+  }
+  if (path.startsWith("/billing/")) {
+    return {
+      plan: "pro",
+      plan_name: "Pro",
+      projects_used: 1,
+      projects_limit: null,
+      quota_exceeded: false,
+      stripe_configured: false,
+      mode: "self_hosted",
+      message: "Demo workspace active on PRO plan.",
+    };
+  }
   if (path.startsWith("/reports/")) {
     return {
       project_name: "TaskFlow AI",
-      status: "Delivered",
-      code_review_score: 94,
-      qa_pass_rate: 100,
-      security_grade: "A+",
+      sections: {
+        "1_executive_summary": {
+          title: "1. Executive Summary",
+          content: "TaskFlow AI was engineered across all 10 autonomous stages with 100% QA pass rate and 0 critical findings.",
+          status: "APPROVED_FOR_RELEASE",
+          progress: "100%",
+        },
+        "6_file_structure": { total_files: 6, files: ["backend/app/main.py", "frontend/src/App.tsx", "tests/test_generated.py", "deploy/Dockerfile"] },
+        "10_testing_results": { total_tests: 8, passed_tests: 8, failed_tests: 0, pass_rate: "100%" },
+        "12_security_findings": { critical: 0, high: 0, medium: 0, low: 0, status: "PASSED_LOW_RISK" },
+        "17_cost_summary": { total_tokens_consumed: 3495, estimated_cost_usd: 0.0025 },
+      },
       generated_at: NOW,
     };
   }
