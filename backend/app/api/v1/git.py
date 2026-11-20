@@ -38,6 +38,9 @@ def get_repository_status(project_id: str, db: Session = Depends(get_db)):
 @router.get("/project/{project_id}/commits")
 def list_commits(project_id: str, db: Session = Depends(get_db)):
     """List commit history authored by agents."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     state = GitService.get_repo_state(project_id)
     return state.get("commits", [])
 
@@ -45,6 +48,9 @@ def list_commits(project_id: str, db: Session = Depends(get_db)):
 @router.get("/project/{project_id}/pull-requests")
 def list_pull_requests(project_id: str, db: Session = Depends(get_db)):
     """List Pull Requests for a project."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     state = GitService.get_repo_state(project_id)
     return state.get("pull_requests", [])
 
@@ -69,6 +75,9 @@ def create_pull_request(project_id: str, payload: PullRequestCreate, db: Session
 @router.post("/project/{project_id}/pull-requests/{pr_id}/merge")
 def merge_pull_request(project_id: str, pr_id: int, db: Session = Depends(get_db)):
     """Merge an open Pull Request."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     try:
         return GitService.merge_pull_request(project_id, pr_id)
     except Exception as e:

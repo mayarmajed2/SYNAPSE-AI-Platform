@@ -40,7 +40,7 @@ export const AuditLogsPage: React.FC = () => {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          backgroundColor: "#FFFFFF",
+          backgroundColor: "var(--bg-card)",
           padding: "12px 16px",
           borderRadius: "10px",
           border: "1px solid var(--border-color)",
@@ -145,7 +145,7 @@ export const AuditLogsPage: React.FC = () => {
         >
           <div
             style={{
-              backgroundColor: "#FFFFFF",
+              backgroundColor: "var(--bg-card)",
               borderRadius: "12px",
               padding: "24px",
               width: "560px",

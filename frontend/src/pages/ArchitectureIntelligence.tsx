@@ -1,389 +1,197 @@
-import React, { useEffect, useState } from "react";
-import {
-  Layers,
-  Database,
-  Globe,
-  FileCode,
-  Share2,
-} from "lucide-react";
+import React, { useEffect, useState, useCallback } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Layers, PlusCircle, CheckCircle2, Server } from "lucide-react";
 import { api } from "../services/api";
+import { ErrorBanner, EmptyState, LoadingSkeleton } from "../components/ui/PageState";
 
-export const ArchitectureIntelligencePage: React.FC = () => {
+export const ArchitectureIntelligence: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<any[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-  const [archData, setArchData] = useState<any | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(searchParams.get("project") || "");
+  const [arch, setArch] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<"topology" | "adrs" | "endpoints" | "schema">("topology");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"topology" | "schema" | "contracts" | "adrs">("topology");
+  const [errorMsg, setErrorMsg] = useState("");
 
-  useEffect(() => {
-    api.getProjects().then((projs) => {
-      setProjects(projs || []);
-      if (projs && projs.length > 0) {
-        setSelectedProjectId(projs[0].id);
-      }
-    });
+  const loadArch = useCallback(async (projId: string) => {
+    if (!projId) return;
+    try {
+      const data = await api.getProjectArchitecture(projId);
+      setArch(data);
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Failed to load architecture intelligence.");
+    }
   }, []);
 
   useEffect(() => {
-    if (!selectedProjectId) return;
+    let active = true;
     setLoading(true);
-    api.getProjectArchitecture(selectedProjectId)
-      .then((data) => {
-        setArchData(data);
-        setLoading(false);
+    setErrorMsg("");
+    api
+      .getProjects()
+      .then((list) => {
+        if (!active) return;
+        const arr = Array.isArray(list) ? list : [];
+        setProjects(arr);
+        const target = searchParams.get("project") || arr[0]?.id || "";
+        setSelectedProjectId(target);
+        if (target) return loadArch(target);
       })
-      .catch(() => setLoading(false));
-  }, [selectedProjectId]);
+      .catch((err) => {
+        if (active) setErrorMsg(err?.message || "Failed to load projects.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadArch]);
+
+  if (loading) return <LoadingSkeleton rows={2} />;
+
+  if (projects.length === 0) {
+    return (
+      <EmptyState
+        icon={<Layers size={24} />}
+        title="No architecture blueprints yet"
+        description="Launch a project so the System Architect agent can generate topology diagrams, ADRs, and database schemas."
+        action={<Link to="/app/projects/new" className="btn-primary"><PlusCircle size={14} /> New Project</Link>}
+      />
+    );
+  }
+
+  const components = arch?.components || [];
+  const adrs = arch?.adrs || [];
+  const endpoints = arch?.api_endpoints || [];
+  const tables = arch?.database_tables || [];
 
   return (
-    <div style={{ maxWidth: "1400px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* Header Toolbar */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          backgroundColor: "#FFFFFF",
-          padding: "16px 24px",
-          borderRadius: "12px",
-          border: "1px solid var(--border-color)",
-          boxShadow: "var(--shadow-sm)",
-          flexWrap: "wrap",
-          gap: "16px",
-        }}
-      >
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {errorMsg && <ErrorBanner message={errorMsg} onRetry={() => loadArch(selectedProjectId)} />}
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: "20px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.4px" }}>
-            Architecture Intelligence & Systems Topology
-          </h1>
-          <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "2px" }}>
-            Interactive component boundaries, relational schemas, API contracts, and Architecture Decision Records (ADRs).
+          <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>Architecture Intelligence</h1>
+          <p style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>
+            System topology, Architecture Decision Records (ADRs), API contracts, and data models.
           </p>
         </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <select
-            className="input-field"
-            style={{ width: "220px", height: "36px" }}
-            value={selectedProjectId}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
-          >
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <select
+          className="input-field"
+          style={{ width: 220 }}
+          value={selectedProjectId}
+          onChange={(e) => {
+            setSelectedProjectId(e.target.value);
+            setSearchParams({ project: e.target.value });
+            loadArch(e.target.value);
+          }}
+        >
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
       </div>
 
-      {/* Navigation Tabs */}
-      <div style={{ display: "flex", gap: "6px", borderBottom: "1px solid var(--border-color)", paddingBottom: "2px" }}>
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {[
-          { key: "topology", label: "Service Topology", icon: Layers },
-          { key: "schema", label: `Database ER Model (${archData?.entities?.length || 0})`, icon: Database },
-          { key: "contracts", label: `API Contracts (${archData?.endpoints?.length || 0})`, icon: Globe },
-          { key: "adrs", label: `Architecture Decision Records (${archData?.adrs?.length || 0})`, icon: FileCode },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "10px 18px",
-                fontSize: "13px",
-                fontWeight: isActive ? 600 : 500,
-                color: isActive ? "var(--primary-accent)" : "var(--text-secondary)",
-                backgroundColor: "transparent",
-                border: "none",
-                borderBottom: isActive ? "2px solid var(--primary-accent)" : "2px solid transparent",
-                cursor: "pointer",
-                transition: "all 0.12s ease",
-              }}
-            >
-              <Icon size={15} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+          { id: "topology", label: `Components (${components.length})` },
+          { id: "adrs", label: `ADRs (${adrs.length})` },
+          { id: "endpoints", label: `API Contracts (${endpoints.length})` },
+          { id: "schema", label: `DB Tables (${tables.length})` },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            className={activeTab === tab.id ? "btn-primary btn-sm" : "btn-secondary btn-sm"}
+            onClick={() => setActiveTab(tab.id as any)}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "60px", color: "var(--text-secondary)" }}>
-          Compiling architecture intelligence...
-        </div>
-      ) : !archData ? (
-        <div className="card" style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)" }}>
-          No architectural specifications found for this project.
-        </div>
-      ) : (
-        <>
-          {/* Tab 1: Service Topology */}
-          {activeTab === "topology" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              {/* Architecture Blueprint Card */}
-              <div className="card" style={{ padding: "24px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                  <div>
-                    <h2 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>
-                      Component Architecture Diagram
-                    </h2>
-                    <p style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                      Decoupled service tiers and interaction boundaries designed by Marcus Aurelius (System Architect)
-                    </p>
-                  </div>
-                  <span className="badge badge-primary">Active Blueprint</span>
+      {activeTab === "topology" && (
+        <div className="grid-2col">
+          {components.map((c: any) => (
+            <div key={c.id || c.name} className="card">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Server size={16} color="var(--primary-accent)" />
+                  <strong style={{ fontSize: 14.5 }}>{c.name}</strong>
                 </div>
-
-                {/* Visual Topology Nodes Flow */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px", margin: "16px 0" }}>
-                  {archData.components?.map((comp: any) => (
-                    <div
-                      key={comp.id}
-                      style={{
-                        padding: "18px",
-                        borderRadius: "10px",
-                        border: "1px solid var(--border-color)",
-                        backgroundColor: "#FAFAFA",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "10px",
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--primary-accent)" }}>
-                          {comp.type}
-                        </span>
-                        <span className="badge badge-success">{comp.status}</span>
-                      </div>
-                      <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>{comp.name}</h3>
-                      <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
-                        {comp.tech}
-                      </div>
-                      <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: "8px" }}>
-                        <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "4px" }}>
-                          Responsibilities:
-                        </div>
-                        <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "var(--text-secondary)", lineHeight: "1.4" }}>
-                          {comp.responsibilities?.map((r: string, idx: number) => (
-                            <li key={idx}>{r}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <span className="badge badge-neutral">{c.type || c.layer || "service"}</span>
               </div>
-
-              {/* Inter-Component Network Connections */}
-              <div className="card" style={{ padding: "24px" }}>
-                <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "12px" }}>
-                  Service Communication Protocols & Data Contracts
-                </h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  {archData.connections?.map((conn: any, idx: number) => (
-                    <div
-                      key={idx}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "12px 16px",
-                        backgroundColor: "#FFFFFF",
-                        border: "1px solid var(--border-color)",
-                        borderRadius: "8px",
-                        fontSize: "13px",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{conn.from}</span>
-                        <Share2 size={14} color="var(--primary-accent)" />
-                        <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{conn.to}</span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                        <span className="badge badge-primary">{conn.protocol}</span>
-                        <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{conn.nature}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>{c.description || c.responsibility}</p>
+              {c.technology && (
+                <div style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--primary-accent)" }}>{c.technology}</div>
+              )}
             </div>
-          )}
+          ))}
+        </div>
+      )}
 
-          {/* Tab 2: Database Schema & ER Model */}
-          {activeTab === "schema" && (
-            <div className="card" style={{ padding: "24px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                <div>
-                  <h2 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>
-                    Relational Database Entities & Schemas
-                  </h2>
-                  <p style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                    PostgreSQL 16 relational tables with types, primary keys, and relations
-                  </p>
-                </div>
-                <span className="badge badge-neutral">ACID Compliant</span>
+      {activeTab === "adrs" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>
+            {adrs.length} Architecture Decision Record{adrs.length === 1 ? "" : "s"} documented
+          </div>
+          {adrs.map((adr: any) => (
+            <div key={adr.id || adr.title} className="card">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <strong style={{ fontSize: 14.5 }}>{adr.id}: {adr.title}</strong>
+                <span className="badge badge-success"><CheckCircle2 size={12} /> {adr.status || "Accepted"}</span>
               </div>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 6 }}>{adr.context || adr.rationale}</p>
+              {adr.decision && <div style={{ fontSize: 13 }}><strong>Decision:</strong> {adr.decision}</div>}
+            </div>
+          ))}
+        </div>
+      )}
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px" }}>
-                {archData.entities?.map((table: any, idx: number) => (
-                  <div
-                    key={idx}
-                    style={{
-                      border: "1px solid var(--border-color)",
-                      borderRadius: "10px",
-                      overflow: "hidden",
-                      backgroundColor: "#FFFFFF",
-                    }}
-                  >
-                    <div style={{ padding: "12px 16px", backgroundColor: "#F9FAFB", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: "8px" }}>
-                      <Database size={15} color="var(--primary-accent)" />
-                      <span style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
-                        {table.table_name}
-                      </span>
-                    </div>
+      {activeTab === "endpoints" && (
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Method</th>
+                  <th>Path</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {endpoints.map((ep: any, idx: number) => (
+                  <tr key={idx}>
+                    <td><span className="badge badge-primary">{ep.method}</span></td>
+                    <td style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{ep.path}</td>
+                    <td style={{ color: "var(--text-secondary)" }}>{ep.description}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
-                    <div style={{ padding: "14px 16px" }}>
-                      <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "8px" }}>
-                        Columns & Attributes
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        {table.columns?.map((col: string, cidx: number) => (
-                          <div
-                            key={cidx}
-                            style={{
-                              padding: "6px 10px",
-                              backgroundColor: "#FAFAFA",
-                              borderRadius: "6px",
-                              fontSize: "12px",
-                              fontFamily: "var(--font-mono)",
-                              color: "var(--text-primary)",
-                              display: "flex",
-                              justifyContent: "space-between",
-                            }}
-                          >
-                            <span>{col}</span>
-                            {col.includes("PK") && <span className="badge badge-primary">PK</span>}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div style={{ marginTop: "12px", paddingTop: "8px", borderTop: "1px solid var(--border-color)", fontSize: "11px", color: "var(--text-secondary)" }}>
-                        Relationships: <strong>{table.relationships}</strong>
-                      </div>
-                    </div>
+      {activeTab === "schema" && (
+        <div className="grid-2col">
+          {tables.map((t: any, idx: number) => (
+            <div key={idx} className="card">
+              <h3 style={{ fontSize: 14.5, fontWeight: 700, fontFamily: "var(--font-mono)", marginBottom: 10 }}>
+                {t.table_name || t.name}
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {(t.columns || []).map((col: any, i: number) => (
+                  <div key={i} style={{ fontSize: 12.5, fontFamily: "var(--font-mono)", padding: "5px 8px", borderRadius: 6, background: "var(--bg-main)" }}>
+                    {typeof col === "string" ? col : `${col.name} (${col.type})`}
                   </div>
                 ))}
               </div>
             </div>
-          )}
-
-          {/* Tab 3: API Contracts */}
-          {activeTab === "contracts" && (
-            <div className="card" style={{ padding: "24px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                <div>
-                  <h2 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>
-                    REST API Contracts & Endpoints
-                  </h2>
-                  <p style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                    Standardized FastAPI endpoints with HTTP verbs, path definitions, and schema bounds
-                  </p>
-                </div>
-                <span className="badge badge-success">OpenAPI v3.1</span>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {archData.endpoints?.map((ep: any, idx: number) => {
-                  const methodColor =
-                    ep.method === "GET" ? "badge-primary" : ep.method === "POST" ? "badge-success" : "badge-warning";
-                  return (
-                    <div
-                      key={idx}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "12px 16px",
-                        borderRadius: "8px",
-                        border: "1px solid var(--border-color)",
-                        backgroundColor: "#FAFAFA",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <span className={`badge ${methodColor}`} style={{ width: "50px", textAlign: "center" }}>
-                          {ep.method}
-                        </span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
-                          {ep.path}
-                        </span>
-                      </div>
-                      <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                        {ep.description}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Tab 4: Architecture Decision Records (ADRs) */}
-          {activeTab === "adrs" && (
-            <div className="card" style={{ padding: "24px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                <div>
-                  <h2 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>
-                    Architecture Decision Records (ADRs)
-                  </h2>
-                  <p style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                    Formal technical trade-offs, architectural decisions, and consequences recorded by the System Architect
-                  </p>
-                </div>
-                <span className="badge badge-success">4 Decisions Accepted</span>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {archData.adrs?.map((adr: any) => (
-                  <div
-                    key={adr.id}
-                    style={{
-                      padding: "18px 20px",
-                      borderRadius: "10px",
-                      border: "1px solid var(--border-color)",
-                      backgroundColor: "#FAFAFA",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span className="badge badge-neutral">{adr.id}</span>
-                        <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>{adr.title}</h3>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{adr.date}</span>
-                        <span className="badge badge-success">{adr.status}</span>
-                      </div>
-                    </div>
-
-                    <div style={{ fontSize: "13px", color: "var(--text-primary)", lineHeight: "1.5", marginBottom: "8px" }}>
-                      <strong>Decision: </strong>{adr.decision}
-                    </div>
-
-                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.4" }}>
-                      <strong>Consequences: </strong>{adr.consequences}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
+          ))}
+        </div>
       )}
     </div>
   );

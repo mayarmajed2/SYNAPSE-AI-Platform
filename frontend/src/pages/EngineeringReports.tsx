@@ -1,299 +1,166 @@
-import React, { useEffect, useState } from "react";
-import {
-  Download,
-  Printer,
-} from "lucide-react";
+import React, { useEffect, useState, useCallback } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { FileText, Download, Printer, PlusCircle } from "lucide-react";
 import { api } from "../services/api";
+import { ErrorBanner, EmptyState, LoadingSkeleton } from "../components/ui/PageState";
 
-export const EngineeringReportsPage: React.FC = () => {
+export const EngineeringReports: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<any[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-  const [report, setReport] = useState<any | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(searchParams.get("project") || "");
+  const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  useEffect(() => {
-    api.getProjects().then((projs) => {
-      setProjects(projs || []);
-      if (projs && projs.length > 0) {
-        setSelectedProjectId(projs[0].id);
-      }
-    });
+  const loadReport = useCallback(async (projId: string) => {
+    if (!projId) return;
+    try {
+      const data = await api.getDeliveryReport(projId);
+      setReport(data);
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Failed to generate engineering delivery report.");
+    }
   }, []);
 
   useEffect(() => {
-    if (!selectedProjectId) return;
+    let active = true;
     setLoading(true);
-    api.getDeliveryReport(selectedProjectId)
-      .then((data) => {
-        setReport(data);
-        setLoading(false);
+    setErrorMsg("");
+    api
+      .getProjects()
+      .then((list) => {
+        if (!active) return;
+        const arr = Array.isArray(list) ? list : [];
+        setProjects(arr);
+        const target = searchParams.get("project") || arr[0]?.id || "";
+        setSelectedProjectId(target);
+        if (target) return loadReport(target);
       })
-      .catch(() => setLoading(false));
-  }, [selectedProjectId]);
+      .catch((err) => {
+        if (active) setErrorMsg(err?.message || "Failed to load projects.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadReport]);
 
-  const handlePrint = () => {
-    window.print();
-  };
+  if (loading) return <LoadingSkeleton rows={2} />;
+
+  if (projects.length === 0) {
+    return (
+      <EmptyState
+        icon={<FileText size={24} />}
+        title="No delivery reports available"
+        description="Launch a project to generate an executive engineering delivery dossier with QA, security, and cost metrics."
+        action={<Link to="/app/projects/new" className="btn-primary"><PlusCircle size={14} /> New Project</Link>}
+      />
+    );
+  }
+
+  const s = report?.sections || {};
+  const exec = s["1_executive_summary"] || {};
+  const qa = s["10_testing_results"] || {};
+  const sec = s["12_security_findings"] || {};
+  const cost = s["17_cost_summary"] || {};
+  const files = s["6_file_structure"] || {};
 
   return (
-    <div style={{ maxWidth: "1200px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* Header Toolbar */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          backgroundColor: "#FFFFFF",
-          padding: "16px 24px",
-          borderRadius: "12px",
-          border: "1px solid var(--border-color)",
-          boxShadow: "var(--shadow-sm)",
-          flexWrap: "wrap",
-          gap: "16px",
-        }}
-      >
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {errorMsg && <ErrorBanner message={errorMsg} onRetry={() => loadReport(selectedProjectId)} />}
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: "20px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.4px" }}>
-            Official Engineering Delivery Reports
-          </h1>
-          <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "2px" }}>
-            Comprehensive 18-section audit, architecture, quality, security, and deployment dossier for stakeholders.
+          <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>Engineering Delivery Reports</h1>
+          <p style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>
+            Live release dossier computed from persisted QA, SAST, artifact, and LLM usage records.
           </p>
         </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <select
             className="input-field"
-            style={{ width: "220px", height: "36px" }}
+            style={{ width: 220 }}
             value={selectedProjectId}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
+            onChange={(e) => {
+              setSelectedProjectId(e.target.value);
+              setSearchParams({ project: e.target.value });
+              loadReport(e.target.value);
+            }}
           >
             {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
+              <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-
-          {selectedProjectId && (
+          {report && (
             <>
-              <a
-                href={api.getReportDownloadUrl(selectedProjectId)}
-                download
-                className="btn-secondary"
-                style={{ padding: "8px 12px", fontSize: "12px" }}
-              >
-                <Download size={14} />
-                <span>Markdown</span>
+              <a href={api.getReportDownloadUrl(selectedProjectId)} className="btn-secondary btn-sm">
+                <Download size={14} /> Markdown
               </a>
-              <button
-                onClick={handlePrint}
-                className="btn-primary"
-                style={{ padding: "8px 12px", fontSize: "12px" }}
-              >
-                <Printer size={14} />
-                <span>Print / PDF</span>
+              <button type="button" className="btn-primary btn-sm" onClick={() => window.print()}>
+                <Printer size={14} /> Print / PDF
               </button>
             </>
           )}
         </div>
       </div>
 
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "60px", color: "var(--text-secondary)" }}>
-          Synthesizing comprehensive engineering delivery dossier...
-        </div>
-      ) : !report ? (
-        <div className="card" style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)" }}>
-          No delivery report compiled for this project yet.
-        </div>
-      ) : (
-        <div
-          id="printable-report"
-          className="card"
-          style={{
-            padding: "40px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "28px",
-            backgroundColor: "#FFFFFF",
-          }}
-        >
-          {/* Document Cover Header */}
-          <div style={{ borderBottom: "2px solid var(--border-color)", paddingBottom: "20px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <span className="badge badge-success" style={{ marginBottom: "8px" }}>
-                  {report.sections?.["1_executive_summary"]?.status || "APPROVED"}
+      {report && (
+        <>
+          <div className="grid-kpi">
+            <div className="card">
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-muted)" }}>RELEASE STATUS</div>
+              <div style={{ marginTop: 8 }}>
+                <span className={`badge ${exec.status === "APPROVED_FOR_RELEASE" ? "badge-success" : exec.status === "REVIEW_REQUIRED" ? "badge-warning" : "badge-primary"}`}>
+                  {(exec.status || "IN_PROGRESS").replace(/_/g, " ")}
                 </span>
-                <h1 style={{ fontSize: "26px", fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
-                  {report.project_name}
-                </h1>
-                <div style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>
-                  Autonomous Software Delivery Dossier • Generated {report.sections?.["1_executive_summary"]?.delivery_date}
-                </div>
               </div>
-
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)" }}>
-                  Engineering Fleet
-                </div>
-                <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--primary-accent)", marginTop: "2px" }}>
-                  SYNAPSE AI Workforce (10 Agents)
-                </div>
-              </div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>Progress: {exec.progress || "0%"}</div>
             </div>
-          </div>
 
-          {/* Section 1: Executive Summary */}
-          <div>
-            <h2 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "8px" }}>
-              1. Executive Summary
-            </h2>
-            <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
-              {report.sections?.["1_executive_summary"]?.content}
-            </p>
-          </div>
-
-          {/* Section 2: Product Requirements */}
-          <div>
-            <h2 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "8px" }}>
-              2. Product Requirements Document (PRD)
-            </h2>
-            <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "12px" }}>
-              {report.sections?.["2_product_requirements"]?.overview}
-            </p>
-            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "6px" }}>
-              Core Functional Requirements:
-            </div>
-            <ul style={{ margin: 0, paddingLeft: "20px", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
-              {report.sections?.["2_product_requirements"]?.functional_requirements?.map((req: string, idx: number) => (
-                <li key={idx}>{req}</li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Section 3 & 4: Architecture & Tech Stack */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-            <div style={{ padding: "16px", backgroundColor: "#F9FAFB", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-              <h3 style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "6px" }}>
-                3. Architecture Overview
-              </h3>
-              <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
-                {report.sections?.["3_architecture_overview"]?.description}
-              </p>
-              <div style={{ fontSize: "11px", color: "var(--primary-accent)", fontWeight: 600, marginTop: "6px" }}>
-                Topology: {report.sections?.["3_architecture_overview"]?.pattern}
+            <div className="card">
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-muted)" }}>QA PASS RATE</div>
+              <div style={{ fontSize: 24, fontWeight: 800, marginTop: 6 }}>{qa.pass_rate || "Not run"}</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                {qa.passed_tests ?? 0}/{qa.total_tests ?? 0} passed
               </div>
             </div>
 
-            <div style={{ padding: "16px", backgroundColor: "#F9FAFB", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-              <h3 style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "6px" }}>
-                4. Technology Stack Matrix
-              </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px", color: "var(--text-secondary)" }}>
-                <div><strong>Frontend:</strong> {report.sections?.["4_technology_stack"]?.frontend}</div>
-                <div><strong>Backend:</strong> {report.sections?.["4_technology_stack"]?.backend}</div>
-                <div><strong>Database:</strong> {report.sections?.["4_technology_stack"]?.database}</div>
+            <div className="card">
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-muted)" }}>SECURITY POSTURE</div>
+              <div style={{ fontSize: 24, fontWeight: 800, marginTop: 6, color: (sec.critical || 0) > 0 ? "var(--error)" : "var(--success)" }}>
+                {sec.critical ?? 0} Critical
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                {sec.high ?? 0} High · {sec.medium ?? 0} Med · {sec.low ?? 0} Low
+              </div>
+            </div>
+
+            <div className="card">
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-muted)" }}>LLM COST</div>
+              <div style={{ fontSize: 24, fontWeight: 800, marginTop: 6 }}>${Number(cost.estimated_cost_usd || 0).toFixed(4)}</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                {Number(cost.total_tokens_consumed || 0).toLocaleString()} tokens
               </div>
             </div>
           </div>
 
-          {/* Section 7: API Documentation */}
-          <div>
-            <h2 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "8px" }}>
-              7. API Documentation Endpoints
-            </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              {report.sections?.["7_api_documentation"]?.endpoints?.map((ep: any, idx: number) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    padding: "8px 12px",
-                    backgroundColor: "#FAFAFA",
-                    borderRadius: "6px",
-                    border: "1px solid var(--border-color)",
-                    fontSize: "12px",
-                  }}
-                >
-                  <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                    <span className="badge badge-primary">{ep.method}</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{ep.path}</span>
-                  </div>
-                  <span style={{ color: "var(--text-secondary)" }}>{ep.description}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Section 9, 10, 11, 12: Quality & Security Scorecards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
-            <div style={{ padding: "14px", backgroundColor: "#FAFAFA", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-              <div style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "uppercase" }}>Code Review</div>
-              <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--primary-accent)", marginTop: "4px" }}>
-                {report.sections?.["9_code_review_results"]?.score} / 100
-              </div>
-              <div style={{ fontSize: "11px", color: "var(--success)", marginTop: "2px" }}>Approved</div>
-            </div>
-
-            <div style={{ padding: "14px", backgroundColor: "#FAFAFA", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-              <div style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "uppercase" }}>QA Pass Rate</div>
-              <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--success)", marginTop: "4px" }}>
-                {report.sections?.["10_testing_results"]?.pass_rate}
-              </div>
-              <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
-                {report.sections?.["10_testing_results"]?.passed_tests} tests passing
-              </div>
-            </div>
-
-            <div style={{ padding: "14px", backgroundColor: "#FAFAFA", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-              <div style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "uppercase" }}>Code Coverage</div>
-              <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--primary-accent)", marginTop: "4px" }}>
-                {report.sections?.["11_code_coverage"]?.statement_coverage}
-              </div>
-              <div style={{ fontSize: "11px", color: "var(--success)", marginTop: "2px" }}>Exceeds 80% baseline</div>
-            </div>
-
-            <div style={{ padding: "14px", backgroundColor: "#FAFAFA", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-              <div style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "uppercase" }}>Security SAST</div>
-              <div style={{ fontSize: "18px", fontWeight: 700, color: "#10B981", marginTop: "4px" }}>
-                0 Critical
-              </div>
-              <div style={{ fontSize: "11px", color: "var(--success)", marginTop: "2px" }}>Low risk profile</div>
-            </div>
-          </div>
-
-          {/* Section 14: Deployment Instructions */}
-          <div style={{ padding: "16px", backgroundColor: "#F9FAFB", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-            <h2 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "6px" }}>
-              14. Deployment Instructions
-            </h2>
-            <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "6px" }}>
-              To spin up this autonomous project with PostgreSQL, FastAPI backend, and React frontend:
-            </div>
-            <pre style={{ margin: 0, padding: "10px 14px", backgroundColor: "#1E293B", color: "#F1F5F9", borderRadius: "6px", fontSize: "12px", fontFamily: "var(--font-mono)" }}>
-              {report.sections?.["14_deployment_instructions"]?.command}
-            </pre>
-          </div>
-
-          {/* Section 17: Cost Breakdown */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", backgroundColor: "#EFF6FF", borderRadius: "8px", border: "1px solid #BFDBFE" }}>
+          <div className="card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
-              <div style={{ fontSize: "12px", fontWeight: 600, color: "#1E40AF" }}>
-                17. Autonomous AI Engineering Cost
-              </div>
-              <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--primary-accent)", marginTop: "2px" }}>
-                ${report.sections?.["17_cost_summary"]?.estimated_cost_usd} USD
-              </div>
+              <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>{exec.title || "Executive Summary"}</h2>
+              <p style={{ fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.65 }}>{exec.content}</p>
             </div>
-            <div style={{ textAlign: "right", fontSize: "12px", color: "#3B82F6" }}>
-              <div>Traditional Agency Value: <strong>{report.sections?.["17_cost_summary"]?.traditional_agency_equivalent}</strong></div>
-              <div>Net Efficiency Gain: <strong>{report.sections?.["17_cost_summary"]?.savings_percentage}</strong></div>
+            <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: 14 }}>
+              <h3 style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 8 }}>Generated Artifacts ({files.total_files ?? 0})</h3>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {(files.files || []).map((f: string) => (
+                  <span key={f} className="badge badge-neutral" style={{ fontFamily: "var(--font-mono)" }}>{f}</span>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

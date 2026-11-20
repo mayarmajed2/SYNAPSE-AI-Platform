@@ -2,13 +2,15 @@
 
 import asyncio
 from datetime import datetime, timezone
+import time
 import uuid
 from typing import Any, Dict
 from sqlalchemy.orm import Session
 
+from app.core.config import settings as app_settings
 from app.db.database import SessionLocal
-from app.db.enums import AgentRole, ApprovalStatus, AuditEventType, ProjectStatus, RiskLevel, TaskStatus, WorkflowStatus
-from app.db.models import Agent, ApprovalRequest, Execution, Project, Task, Workflow
+from app.db.enums import AgentRole, ApprovalStatus, AuditEventType, NodeStatus, ProjectStatus, RiskLevel, TaskStatus, WorkflowStatus
+from app.db.models import Agent, ApprovalRequest, Execution, Project, Task, Workflow, WorkflowNode
 from app.services.audit import log_event
 from app.services.git_service import GitService
 from app.services.websocket_manager import ws_manager
@@ -38,6 +40,31 @@ def _update_agent_status(db: Session, role: str, status: str, task_name: str = "
         db.commit()
 
 
+def _is_workflow_halted(workflow_id: str) -> bool:
+    """Check fresh DB state to see if the workflow was paused or cancelled."""
+    check_db = SessionLocal()
+    try:
+        wf = check_db.query(Workflow).filter(Workflow.id == workflow_id).first()
+        if not wf:
+            return True
+        return wf.status in (WorkflowStatus.PAUSED.value, WorkflowStatus.CANCELLED.value)
+    finally:
+        check_db.close()
+
+
+def _is_node_completed(workflow_id: str, node_key: str) -> bool:
+    check_db = SessionLocal()
+    try:
+        node = (
+            check_db.query(WorkflowNode)
+            .filter(WorkflowNode.workflow_id == workflow_id, WorkflowNode.node_key == node_key)
+            .first()
+        )
+        return bool(node and node.status == NodeStatus.COMPLETED.value)
+    finally:
+        check_db.close()
+
+
 def _record_task(
     db: Session,
     project_id: str,
@@ -47,10 +74,12 @@ def _record_task(
     result: str,
     status: str,
     trace_id: str = None,
+    duration_ms: int = 0,
 ):
-    """Persist a completed task record and execution trace."""
+    """Persist a completed task record, agent metrics, and execution trace."""
     try:
         agent = db.query(Agent).filter(Agent.role == agent_role).first()
+        now = datetime.now(timezone.utc)
         task = Task(
             project_id=project_id,
             workflow_id=workflow_id,
@@ -58,26 +87,34 @@ def _record_task(
             title=title,
             description=f"Autonomous execution by {agent.name if agent else agent_role} [Trace: {trace_id or 'default'}]",
             status=status,
-            output_data={"result": result, "trace_id": trace_id},
-            started_at=datetime.now(timezone.utc),
-            completed_at=datetime.now(timezone.utc),
+            output_data={"result": result, "trace_id": trace_id, "duration_ms": duration_ms},
+            started_at=now,
+            completed_at=now,
         )
         db.add(task)
         db.flush()
 
-        if agent and status == TaskStatus.COMPLETED.value:
-            agent.completed_tasks = (agent.completed_tasks or 0) + 1
+        if agent:
             agent.total_tasks = (agent.total_tasks or 0) + 1
+            if status == TaskStatus.COMPLETED.value:
+                agent.completed_tasks = (agent.completed_tasks or 0) + 1
+            if agent.total_tasks > 0:
+                agent.success_rate = round((agent.completed_tasks / agent.total_tasks) * 100.0, 1)
+            if duration_ms > 0:
+                prev_avg = agent.avg_execution_time_ms or duration_ms
+                agent.avg_execution_time_ms = int((prev_avg + duration_ms) / 2)
             agent.status = "idle"
 
-        # Record fine-grained execution trace
+        # Record fine-grained execution trace matching Execution ORM schema
         execution = Execution(
-            task_id=task.id,
-            agent_id=agent.id if agent else None,
+            workflow_id=workflow_id,
+            project_id=project_id,
+            trigger_type="autonomous",
             status=status,
-            output_data={"result": result},
-            started_at=datetime.now(timezone.utc),
-            completed_at=datetime.now(timezone.utc),
+            summary=f"[{agent_role}] {title}: {result}",
+            logs=[{"task_id": task.id, "agent_role": agent_role, "trace_id": trace_id, "duration_ms": duration_ms}],
+            started_at=now,
+            completed_at=now,
         )
         db.add(execution)
         db.commit()
@@ -102,11 +139,15 @@ async def _run_stage_with_retry(
     last_error = None
 
     while attempt < max_retries:
+        if _is_workflow_halted(workflow_id):
+            raise asyncio.CancelledError(f"Workflow {workflow_id} was paused or cancelled before stage '{stage_name}'")
         attempt += 1
         stage_db = SessionLocal()
+        stage_start = time.perf_counter()
         try:
             _update_agent_status(stage_db, agent_role, "working", stage_name)
             result_state = await stage_fn(state, stage_db)
+            elapsed_ms = max(1, int((time.perf_counter() - stage_start) * 1000))
 
             await ws_manager.broadcast_to_project(
                 project_id=project_id,
@@ -115,15 +156,17 @@ async def _run_stage_with_retry(
                     "stage": stage_name,
                     "agent_role": agent_role,
                     "attempt": attempt,
+                    "duration_ms": elapsed_ms,
                     "trace_id": trace_id,
                 },
             )
 
             _record_task(
                 stage_db, project_id, workflow_id, agent_role, stage_name,
-                f"Stage completed successfully on attempt {attempt}.",
+                f"Stage completed successfully on attempt {attempt} ({elapsed_ms}ms).",
                 TaskStatus.COMPLETED.value,
                 trace_id=trace_id,
+                duration_ms=elapsed_ms,
             )
             _update_agent_status(stage_db, agent_role, "idle")
             return result_state

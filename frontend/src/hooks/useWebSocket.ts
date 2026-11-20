@@ -11,7 +11,8 @@ export function useWebSocket(projectId?: string, onEvent?: (event: WSEvent) => v
   const [isConnected, setIsConnected] = useState(false);
   const [lastEvent, setLastEvent] = useState<WSEvent | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<any>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intentionalCloseRef = useRef(false);
   const onEventRef = useRef(onEvent);
 
   useEffect(() => {
@@ -24,7 +25,6 @@ export function useWebSocket(projectId?: string, onEvent?: (event: WSEvent) => v
       return;
     }
 
-    // Clear any pending reconnect timer
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -49,18 +49,20 @@ export function useWebSocket(projectId?: string, onEvent?: (event: WSEvent) => v
           if (onEventRef.current) {
             onEventRef.current(parsed);
           }
-        } catch (e) {
-          // ignore non-json messages (e.g. pong)
+        } catch {
+          // ignore non-JSON messages (e.g. pong)
         }
       };
 
       socket.onclose = () => {
         setIsConnected(false);
-        // Automatic reconnection after 3 seconds
+        if (intentionalCloseRef.current) return;
         if (!reconnectTimeoutRef.current) {
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectTimeoutRef.current = null;
-            connect();
+            if (!intentionalCloseRef.current) {
+              connect();
+            }
           }, 3000);
         }
       };
@@ -74,8 +76,10 @@ export function useWebSocket(projectId?: string, onEvent?: (event: WSEvent) => v
   }, [projectId]);
 
   useEffect(() => {
+    intentionalCloseRef.current = false;
     connect();
     return () => {
+      intentionalCloseRef.current = true;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
@@ -89,4 +93,3 @@ export function useWebSocket(projectId?: string, onEvent?: (event: WSEvent) => v
 
   return { isConnected, lastEvent };
 }
-

@@ -1,228 +1,238 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
-  FolderGit2,
   PlusCircle,
   Search,
-  Filter,
   Trash2,
-  Workflow,
+  GitBranch,
   Code2,
-  FlaskConical,
+  ExternalLink,
+  FolderKanban,
 } from "lucide-react";
 import { api } from "../services/api";
+import { useToast } from "../context/ToastContext";
+import { ConfirmModal } from "../components/ui/ConfirmModal";
+import { ErrorBanner, EmptyState, LoadingSkeleton } from "../components/ui/PageState";
 
-export const ProjectsPage: React.FC = () => {
+export const Projects: React.FC = () => {
+  const { success, error } = useToast();
   const [projects, setProjects] = useState<any[]>([]);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const fetchProjects = () => {
+  // Debounce search input by 280ms
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 280);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const fetchProjects = useCallback(async () => {
     setLoading(true);
-    api.getProjects(search || undefined, statusFilter || undefined)
-      .then((data) => {
-        setProjects(data || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  };
+    setErrorMsg("");
+    try {
+      const data = await api.getProjects(debouncedSearch || undefined, statusFilter || undefined);
+      setProjects(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Failed to load projects.");
+    } finally {
+      setLoading(false);
+    }
+  }, [debouncedSearch, statusFilter]);
 
   useEffect(() => {
     fetchProjects();
-  }, [search, statusFilter]);
+  }, [fetchProjects]);
 
-  const handleDelete = async (id: string, name: string) => {
-    if (window.confirm(`Are you sure you want to delete project "${name}" and all its artifacts?`)) {
-      try {
-        await api.deleteProject(id);
-        setProjects((prev) => prev.filter((p) => p.id !== id));
-      } catch (err: any) {
-        alert("Failed to delete project: " + err.message);
-      }
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.deleteProject(deleteTarget.id);
+      success("Project deleted", `"${deleteTarget.name}" has been removed.`);
+      setDeleteTarget(null);
+      fetchProjects();
+    } catch (err: any) {
+      error("Delete failed", err?.message || "Could not delete project.");
+    } finally {
+      setDeleting(false);
     }
   };
 
+  const formatStack = (stack: any): string => {
+    if (!stack || typeof stack !== "object") return "React, FastAPI, PostgreSQL";
+    const vals = Object.values(stack).filter(Boolean).map(String);
+    return vals.length > 0 ? vals.join(" · ") : "React, FastAPI, PostgreSQL";
+  };
+
   return (
-    <div style={{ maxWidth: "1400px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.4px" }}>
-            Software Projects
-          </h1>
-          <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginTop: "2px" }}>
-            Manage autonomous projects, inspect artifacts, and monitor multi-agent execution status.
+          <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>Projects</h1>
+          <p style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>
+            Manage autonomous software repositories, execution pipelines, and generated deliverables.
           </p>
         </div>
-        <Link to="/projects/new" className="btn-primary">
-          <PlusCircle size={16} />
-          <span>New Project</span>
+        <Link to="/app/projects/new" className="btn-primary">
+          <PlusCircle size={15} /> New Software Project
         </Link>
       </div>
 
-      {/* Filters Bar */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          backgroundColor: "#FFFFFF",
-          padding: "12px 16px",
-          borderRadius: "10px",
-          border: "1px solid var(--border-color)",
-          gap: "16px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, position: "relative" }}>
-          <Search size={16} style={{ position: "absolute", left: "10px", color: "var(--text-secondary)" }} />
+      {/* Filter Bar */}
+      <div className="card" style={{ padding: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 220 }}>
+          <Search size={15} color="var(--text-muted)" style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)" }} />
           <input
             type="text"
             className="input-field"
-            placeholder="Search projects by name, archetype, or keywords..."
+            style={{ paddingLeft: 34 }}
+            placeholder="Search projects by name or description..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ paddingLeft: "34px", height: "36px" }}
           />
         </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <Filter size={15} color="var(--text-secondary)" />
-          <select
-            className="input-field"
-            style={{ width: "160px", height: "36px" }}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">All Statuses</option>
-            <option value="planning">Planning</option>
-            <option value="in_progress">In Progress</option>
-            <option value="review">Review</option>
-            <option value="testing">Testing</option>
-            <option value="completed">Completed</option>
-          </select>
-        </div>
+        <select
+          className="input-field"
+          style={{ width: 180 }}
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="">All Statuses</option>
+          <option value="planning">Planning</option>
+          <option value="in_progress">In Progress</option>
+          <option value="review">In Review</option>
+          <option value="completed">Completed</option>
+          <option value="failed">Failed</option>
+        </select>
       </div>
 
-      {/* Projects Table / Card List */}
+      {errorMsg && <ErrorBanner message={errorMsg} onRetry={fetchProjects} />}
+
       {loading ? (
-        <div style={{ textAlign: "center", padding: "60px", color: "var(--text-secondary)" }}>
-          Loading project registry...
-        </div>
+        <LoadingSkeleton rows={3} />
       ) : projects.length === 0 ? (
-        <div
-          className="card"
-          style={{
-            textAlign: "center",
-            padding: "60px 20px",
-            border: "1px dashed var(--border-color)",
-          }}
-        >
-          <FolderGit2 size={40} color="var(--text-secondary)" style={{ margin: "0 auto 12px" }} />
-          <h2 style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>No projects found</h2>
-          <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px", marginBottom: "16px" }}>
-            {search || statusFilter ? "No projects match your filter criteria." : "Create your first autonomous software project now."}
-          </p>
-          <Link to="/projects/new" className="btn-primary">
-            <PlusCircle size={15} />
-            <span>Create New Project</span>
-          </Link>
-        </div>
+        <EmptyState
+          icon={<FolderKanban size={24} />}
+          title="No projects found"
+          description={
+            search || statusFilter
+              ? "Try adjusting your search query or status filter."
+              : "Launch your first autonomous software project to watch all 10 agents build, test, and verify your codebase."
+          }
+          action={
+            <Link to="/app/projects/new" className="btn-primary">
+              <PlusCircle size={14} /> Create Software Project
+            </Link>
+          }
+        />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div className="grid-2col">
           {projects.map((p) => (
-            <div
-              key={p.id}
-              className="card"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "18px 24px",
-              }}
-            >
-              <div style={{ flex: 1, paddingRight: "24px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
-                  <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
-                    <Link to={`/projects/${p.id}`} style={{ color: "inherit", textDecoration: "none" }}>
-                      {p.name}
-                    </Link>
-                  </h3>
-                  <span className="badge badge-neutral">{p.project_type}</span>
-                  <span className={`badge badge-${p.status === "completed" ? "success" : "primary"}`}>{p.status}</span>
+            <div key={p.id} className="card card-interactive" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                <div>
+                  <Link
+                    to={`/app/projects/${p.id}`}
+                    style={{ fontSize: 16, fontWeight: 700, textDecoration: "none", color: "var(--text-primary)" }}
+                  >
+                    {p.name}
+                  </Link>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+                    <span className="badge badge-neutral">{p.project_type}</span>
+                    <span className="badge badge-neutral">{p.complexity}</span>
+                  </div>
                 </div>
-                <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.4" }}>{p.idea}</p>
-                <div style={{ display: "flex", gap: "16px", marginTop: "10px", fontSize: "11px", color: "var(--text-secondary)" }}>
-                  <span>Created: {new Date(p.created_at).toLocaleDateString()}</span>
-                  <span>Stack: React, FastAPI, PostgreSQL</span>
+                <span
+                  className={`badge ${
+                    p.status === "completed"
+                      ? "badge-success"
+                      : p.status === "failed"
+                      ? "badge-error"
+                      : p.status === "review"
+                      ? "badge-warning"
+                      : "badge-primary"
+                  }`}
+                >
+                  {p.status}
+                </span>
+              </div>
+
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.55 }}>
+                {(p.description || p.idea || "").slice(0, 160)}
+                {(p.description || p.idea || "").length > 160 ? "..." : ""}
+              </p>
+
+              <div style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                Stack: {formatStack(p.tech_stack)}
+              </div>
+
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, fontWeight: 600, marginBottom: 5 }}>
+                  <span style={{ color: "var(--text-muted)" }}>Pipeline Progress</span>
+                  <span>{p.execution_progress}%</span>
+                </div>
+                <div style={{ height: 6, borderRadius: 99, background: "var(--bg-subtle)", overflow: "hidden" }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${p.execution_progress}%`,
+                      background: p.status === "failed" ? "var(--error)" : "var(--primary-accent)",
+                    }}
+                  />
                 </div>
               </div>
 
-              {/* Progress & Quick Actions */}
-              <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-                <div style={{ width: "120px", textAlign: "right" }}>
-                  <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)" }}>
-                    {p.execution_progress}%
-                  </div>
-                  <div
-                    style={{
-                      height: "6px",
-                      width: "100%",
-                      backgroundColor: "#E5E7EB",
-                      borderRadius: "3px",
-                      marginTop: "4px",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: "100%",
-                        width: `${p.execution_progress}%`,
-                        backgroundColor: p.execution_progress === 100 ? "var(--success)" : "var(--primary-accent)",
-                      }}
-                    />
-                  </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingTop: 12,
+                  borderTop: "1px solid var(--border-color)",
+                  flexWrap: "wrap",
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <Link to={`/app/projects/${p.id}`} className="btn-secondary btn-sm">
+                    <ExternalLink size={13} /> Details
+                  </Link>
+                  <Link to={`/app/workflows?project=${p.id}`} className="btn-secondary btn-sm">
+                    <GitBranch size={13} /> Studio
+                  </Link>
+                  <Link to={`/app/code?project=${p.id}`} className="btn-secondary btn-sm">
+                    <Code2 size={13} /> Code
+                  </Link>
                 </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <Link
-                    to={`/workflow-studio?projectId=${p.id}`}
-                    className="btn-secondary"
-                    title="Open Workflow Studio"
-                    style={{ padding: "8px" }}
-                  >
-                    <Workflow size={16} />
-                  </Link>
-                  <Link
-                    to={`/workspace?projectId=${p.id}`}
-                    className="btn-secondary"
-                    title="Inspect Codebase Artifacts"
-                    style={{ padding: "8px" }}
-                  >
-                    <Code2 size={16} />
-                  </Link>
-                  <Link
-                    to={`/testing?projectId=${p.id}`}
-                    className="btn-secondary"
-                    title="QA Test Runs"
-                    style={{ padding: "8px" }}
-                  >
-                    <FlaskConical size={16} />
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(p.id, p.name)}
-                    className="btn-danger"
-                    title="Delete Project"
-                    style={{ padding: "8px" }}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className="btn-danger btn-sm"
+                  onClick={() => setDeleteTarget(p)}
+                  aria-label={`Delete ${p.name}`}
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <ConfirmModal
+        open={Boolean(deleteTarget)}
+        title="Delete Project"
+        description={`Are you sure you want to permanently delete "${deleteTarget?.name}" and all associated workflows, artifacts, test runs, and security scans?`}
+        confirmLabel="Delete Project"
+        destructive
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

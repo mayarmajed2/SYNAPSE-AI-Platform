@@ -20,7 +20,12 @@ GIT_ROOT.mkdir(exist_ok=True)
 class GitService:
     @staticmethod
     def _get_repo_dir(project_id: str) -> Path:
-        p = GIT_ROOT / project_id
+        if not project_id or "/" in project_id or "\\" in project_id or ".." in project_id:
+            raise ValueError("Invalid project_id for repository path")
+        root = GIT_ROOT.resolve()
+        p = (root / project_id).resolve()
+        if not str(p).startswith(str(root)):
+            raise ValueError("Repository path escapes GIT_ROOT")
         p.mkdir(parents=True, exist_ok=True)
         return p
 
@@ -92,15 +97,21 @@ class GitService:
         commit_hash = hashlib.sha1(f"{agent_name}{time.time()}".encode("utf-8")).hexdigest()[:8]
 
         committed_files = []
+        resolved_repo = repo_dir.resolve()
         for f in files:
             file_path = f.get("path") or f.get("filename", "")
             if not file_path:
                 continue
-            target = repo_dir / file_path
+            safe_rel = Path(file_path.lstrip("/\\"))
+            if safe_rel.is_absolute() or ".." in safe_rel.parts:
+                raise ValueError(f"Unsafe artifact path rejected: {file_path}")
+            target = (resolved_repo / safe_rel).resolve()
+            if not str(target).startswith(str(resolved_repo)):
+                raise ValueError(f"Artifact path escapes repository root: {file_path}")
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(f.get("content", ""), encoding="utf-8")
             committed_files.append({
-                "path": file_path,
+                "path": str(safe_rel).replace("\\", "/"),
                 "size_bytes": len(f.get("content", "").encode("utf-8")),
             })
 

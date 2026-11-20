@@ -1,183 +1,188 @@
-import React from "react";
-import { NavLink } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { NavLink, Link } from "react-router-dom";
 import {
   LayoutDashboard,
+  FolderKanban,
   PlusCircle,
-  FolderGit2,
-  Users2,
-  Workflow,
+  Users,
+  GitBranch,
   CheckSquare,
   Code2,
   FlaskConical,
-  ShieldCheck,
+  ShieldAlert,
+  FileCheck2,
   BarChart3,
-  ScrollText,
+  History,
   Settings,
   Cpu,
   Layers,
   GitPullRequest,
-  FileCheck2,
-  FileSpreadsheet,
+  FileText,
+  X,
+  Sparkles,
 } from "lucide-react";
+import { api } from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
 
-interface NavGroup {
-  label: string;
-  items: {
-    name: string;
-    path: string;
-    icon: React.ComponentType<{ className?: string; size?: number }>;
-    badge?: string;
-  }[];
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-const NAV_GROUPS: NavGroup[] = [
-  {
-    label: "Core",
-    items: [
-      { name: "Overview", path: "/", icon: LayoutDashboard },
-      { name: "New Project", path: "/projects/new", icon: PlusCircle },
-      { name: "Projects", path: "/projects", icon: FolderGit2 },
-      { name: "Agent Workforce", path: "/workforce", icon: Users2, badge: "10" },
-    ],
-  },
-  {
-    label: "Engineering",
-    items: [
-      { name: "Workflow Studio", path: "/workflow-studio", icon: Workflow },
-      { name: "Task Center", path: "/tasks", icon: CheckSquare },
-      { name: "Code Workspace", path: "/workspace", icon: Code2 },
-      { name: "Testing & QA", path: "/testing", icon: FlaskConical },
-      { name: "Security Center", path: "/security", icon: ShieldCheck },
-    ],
-  },
-  {
-    label: "Governance & Ops",
-    items: [
-      { name: "Architecture Intel", path: "/architecture", icon: Layers },
-      { name: "Approvals Center", path: "/approvals", icon: FileCheck2 },
-      { name: "Git & Releases", path: "/git-releases", icon: GitPullRequest },
-      { name: "Delivery Reports", path: "/reports", icon: FileSpreadsheet },
-    ],
-  },
-  {
-    label: "Observability",
-    items: [
-      { name: "Analytics", path: "/analytics", icon: BarChart3 },
-      { name: "Activity Logs", path: "/audit-logs", icon: ScrollText },
-      { name: "Settings", path: "/settings", icon: Settings },
-    ],
-  },
-];
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+  const { user } = useAuth();
+  const [agentCount, setAgentCount] = useState<number | null>(null);
+  const [pendingApprovals, setPendingApprovals] = useState<number>(0);
 
-export const Sidebar: React.FC = () => {
+  useEffect(() => {
+    api.getAgents().then((list) => setAgentCount(Array.isArray(list) ? list.length : null)).catch(() => {});
+    api
+      .getApprovals(undefined, "pending")
+      .then((list) => setPendingApprovals(Array.isArray(list) ? list.length : 0))
+      .catch(() => {});
+  }, []);
+
+  const navGroups = [
+    {
+      label: "WORKSPACE",
+      items: [
+        { name: "Overview", path: "/app", icon: LayoutDashboard, end: true },
+        { name: "New Project", path: "/app/projects/new", icon: PlusCircle },
+        { name: "Projects", path: "/app/projects", icon: FolderKanban },
+        { name: "Agent Workforce", path: "/app/agents", icon: Users, badge: agentCount !== null ? String(agentCount) : undefined },
+      ],
+    },
+    {
+      label: "BUILD & VERIFY",
+      items: [
+        { name: "Workflow Studio", path: "/app/workflows", icon: GitBranch },
+        { name: "Task Center", path: "/app/tasks", icon: CheckSquare },
+        { name: "Code Workspace", path: "/app/code", icon: Code2 },
+        { name: "Testing & QA", path: "/app/testing", icon: FlaskConical },
+        { name: "Security Center", path: "/app/security", icon: ShieldAlert },
+      ],
+    },
+    {
+      label: "GOVERNANCE & OPS",
+      items: [
+        {
+          name: "Approvals",
+          path: "/app/approvals",
+          icon: FileCheck2,
+          badge: pendingApprovals > 0 ? String(pendingApprovals) : undefined,
+          badgeWarn: pendingApprovals > 0,
+        },
+        { name: "Architecture", path: "/app/architecture", icon: Layers },
+        { name: "Git & Releases", path: "/app/git", icon: GitPullRequest },
+        { name: "Delivery Reports", path: "/app/reports", icon: FileText },
+      ],
+    },
+    {
+      label: "OBSERVABILITY",
+      items: [
+        { name: "Analytics", path: "/app/analytics", icon: BarChart3 },
+        { name: "Audit Logs", path: "/app/audit", icon: History },
+        { name: "Settings", path: "/app/settings", icon: Settings },
+      ],
+    },
+  ];
+
+  const planName = (user?.workspace?.plan || "pro").toUpperCase();
+
   return (
-    <aside
-      style={{
-        width: "255px",
-        minWidth: "255px",
-        backgroundColor: "var(--bg-sidebar)",
-        borderRight: "1px solid var(--border-color)",
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        position: "sticky",
-        top: 0,
-        zIndex: 20,
-      }}
-    >
+    <aside className={`app-sidebar ${isOpen ? "open" : ""}`}>
       {/* Brand Header */}
       <div
         style={{
-          padding: "20px 22px",
+          height: "var(--topnav-height)",
+          padding: "0 18px",
+          borderBottom: "1px solid var(--border-color)",
           display: "flex",
           alignItems: "center",
-          gap: "10px",
-          borderBottom: "1px solid var(--border-color)",
+          justifyContent: "space-between",
         }}
       >
-        <div
-          style={{
-            width: "32px",
-            height: "32px",
-            borderRadius: "8px",
-            backgroundColor: "var(--primary-accent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#ffffff",
-          }}
-        >
-          <Cpu size={18} />
-        </div>
-        <div>
-          <span style={{ fontWeight: 700, fontSize: "16px", letterSpacing: "-0.3px", color: "var(--text-primary)" }}>
-            SYNAPSE
-          </span>
-          <span
+        <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+          <div
             style={{
-              display: "block",
-              fontSize: "10px",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.8px",
-              color: "var(--text-secondary)",
+              width: 32,
+              height: 32,
+              borderRadius: 9,
+              background: "linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#FFFFFF",
+              boxShadow: "0 2px 6px rgba(37, 99, 235, 0.25)",
             }}
           >
-            Autonomous AI Eng
-          </span>
-        </div>
+            <Cpu size={17} />
+          </div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+              SYNAPSE
+            </div>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.06em" }}>
+              AUTONOMOUS AI ENG
+            </div>
+          </div>
+        </Link>
+        <button
+          type="button"
+          className="mobile-menu-btn btn-ghost"
+          onClick={onClose}
+          aria-label="Close navigation"
+          style={{ padding: 6 }}
+        >
+          <X size={18} />
+        </button>
       </div>
 
       {/* Navigation Groups */}
-      <nav style={{ flex: 1, padding: "14px 10px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
-        {NAV_GROUPS.map((group) => (
-          <div key={group.label}>
+      <nav style={{ flex: 1, overflowY: "auto", padding: "14px 10px" }}>
+        {navGroups.map((group) => (
+          <div key={group.label} style={{ marginBottom: 18 }}>
             <div
               style={{
-                fontSize: "10px",
+                fontSize: 10,
                 fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.8px",
-                color: "var(--text-secondary)",
-                padding: "4px 12px 6px",
+                color: "var(--text-muted)",
+                letterSpacing: "0.07em",
+                padding: "0 10px 6px",
               }}
             >
               {group.label}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               {group.items.map((item) => {
                 const Icon = item.icon;
                 return (
                   <NavLink
                     key={item.path}
                     to={item.path}
-                    end={item.path === "/"}
+                    end={Boolean((item as any).end)}
                     style={({ isActive }) => ({
                       display: "flex",
                       alignItems: "center",
-                      gap: "10px",
-                      padding: "8px 12px",
-                      borderRadius: "7px",
-                      fontSize: "13px",
+                      justifyContent: "space-between",
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      textDecoration: "none",
+                      fontSize: 13,
                       fontWeight: isActive ? 600 : 500,
                       color: isActive ? "var(--primary-accent)" : "var(--text-secondary)",
                       backgroundColor: isActive ? "var(--primary-light)" : "transparent",
-                      textDecoration: "none",
-                      transition: "all 0.12s ease",
+                      transition: "all 0.14s ease",
                     })}
                   >
-                    <Icon size={17} />
-                    <span style={{ flex: 1 }}>{item.name}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                      <Icon size={16} strokeWidth={1.85} />
+                      <span>{item.name}</span>
+                    </span>
                     {item.badge && (
                       <span
-                        style={{
-                          fontSize: "10px",
-                          fontWeight: 700,
-                          padding: "1px 6px",
-                          borderRadius: "10px",
-                          backgroundColor: "#E2E8F0",
-                          color: "var(--text-primary)",
-                        }}
+                        className={`badge ${(item as any).badgeWarn ? "badge-warning" : "badge-neutral"}`}
+                        style={{ padding: "1px 7px", fontSize: 10.5 }}
                       >
                         {item.badge}
                       </span>
@@ -190,22 +195,39 @@ export const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      {/* System Status Footer */}
-      <div
-        style={{
-          padding: "14px 18px",
-          borderTop: "1px solid var(--border-color)",
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          backgroundColor: "#FAFAFA",
-        }}
-      >
-        <span className="pulse-indicator" />
-        <div style={{ fontSize: "11px" }}>
-          <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>Workforce Fleet Active</div>
-          <div style={{ color: "var(--text-secondary)" }}>10 Specialized Agents Ready</div>
+      {/* Plan & Workforce Footer */}
+      <div style={{ padding: "12px 14px", borderTop: "1px solid var(--border-color)", background: "rgba(15, 23, 42, 0.65)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <span className="pulse-indicator" />
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
+              {agentCount !== null ? `${agentCount} Agents Ready` : "Workforce Fleet"}
+            </span>
+          </div>
+          <span className="badge badge-violet" style={{ fontSize: 10, padding: "1px 7px" }}>
+            {planName}
+          </span>
         </div>
+        <Link
+          to="/pricing"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            padding: "7px 10px",
+            borderRadius: 8,
+            background: "rgba(59, 130, 246, 0.12)",
+            border: "1px solid rgba(59, 130, 246, 0.28)",
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#93C5FD",
+            textDecoration: "none",
+          }}
+        >
+          <Sparkles size={13} color="#60A5FA" />
+          Manage Plan & Billing
+        </Link>
       </div>
     </aside>
   );

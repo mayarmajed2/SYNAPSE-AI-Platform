@@ -1,11 +1,32 @@
 /**
- * SYNAPSE API Client
+ * SYNAPSE API Client — JWT-aware HTTP client with typed endpoints
  */
 
 import { isDemoMode, getDemoResponse } from "./demoData";
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || "http://127.0.0.1:8000";
 const API_BASE = `${API_ORIGIN}/api/v1`;
+const TOKEN_STORAGE_KEY = "synapse_access_token";
+
+export function getStoredToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredToken(token: string | null) {
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   if (isDemoMode()) {
@@ -13,9 +34,11 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   const url = `${API_BASE}${endpoint}`;
-  const headers = {
+  const token = getStoredToken();
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...((options.headers as Record<string, string>) || {}),
   };
 
   try {
@@ -38,12 +61,25 @@ export const api = {
   // Health
   getHealth: () => request<any>("/health"),
 
+  // Authentication
+  register: (data: { email: string; full_name: string; password: string; workspace_name?: string }) =>
+    request<any>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
+  login: (data: { email: string; password: string }) =>
+    request<any>("/auth/login", { method: "POST", body: JSON.stringify(data) }),
+  demoLogin: () => request<any>("/auth/demo-login", { method: "POST" }),
+  getMe: () => request<any>("/auth/me"),
+
+  // Workspace Settings
+  getSettings: () => request<any>("/settings"),
+  updateSettings: (data: any) => request<any>("/settings", { method: "PUT", body: JSON.stringify(data) }),
+
   // Projects
   getProjects: (search?: string, status?: string) => {
     const params = new URLSearchParams();
     if (search) params.append("search", search);
     if (status) params.append("status", status);
-    return request<any[]>(`/projects?${params.toString()}`);
+    const qs = params.toString();
+    return request<any[]>(`/projects${qs ? `?${qs}` : ""}`);
   },
   getProject: (id: string) => request<any>(`/projects/${id}`),
   getProjectDetails: (id: string) => request<any>(`/projects/${id}/details`),
@@ -70,7 +106,8 @@ export const api = {
     if (projectId) params.append("project_id", projectId);
     if (status) params.append("status", status);
     if (agentId) params.append("agent_id", agentId);
-    return request<any[]>(`/tasks?${params.toString()}`);
+    const qs = params.toString();
+    return request<any[]>(`/tasks${qs ? `?${qs}` : ""}`);
   },
   getTask: (id: string) => request<any>(`/tasks/${id}`),
   retryTask: (id: string) => request<any>(`/tasks/${id}/retry`, { method: "POST" }),
@@ -94,12 +131,13 @@ export const api = {
     const params = new URLSearchParams();
     if (projectId) params.append("project_id", projectId);
     if (status) params.append("status", status);
-    return request<any[]>(`/approvals?${params.toString()}`);
+    const qs = params.toString();
+    return request<any[]>(`/approvals${qs ? `?${qs}` : ""}`);
   },
-  resolveApproval: (id: string, decision: "approved" | "rejected", comments?: string) =>
+  resolveApproval: (id: string, decision: "approved" | "rejected", comments?: string, resolverName?: string) =>
     request<any>(`/approvals/${id}/resolve`, {
       method: "POST",
-      body: JSON.stringify({ decision, comments, resolver_name: "Principal Engineer" }),
+      body: JSON.stringify({ decision, comments, resolver_name: resolverName || "Workspace Admin" }),
     }),
 
   // Analytics
@@ -112,7 +150,8 @@ export const api = {
     const params = new URLSearchParams();
     if (projectId) params.append("project_id", projectId);
     if (eventType) params.append("event_type", eventType);
-    return request<any[]>(`/audit/logs?${params.toString()}`);
+    const qs = params.toString();
+    return request<any[]>(`/audit/logs${qs ? `?${qs}` : ""}`);
   },
 
   // Git & Releases
@@ -134,4 +173,3 @@ export const api = {
   getDeliveryReport: (projectId: string) => request<any>(`/reports/project/${projectId}`),
   getReportDownloadUrl: (projectId: string) => `${API_BASE}/reports/project/${projectId}/markdown`,
 };
-

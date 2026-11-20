@@ -1,245 +1,212 @@
-import React, { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import {
-  FileCode,
-  Download,
-  Copy,
-  Check,
-  FolderTree,
-  FileText,
-} from "lucide-react";
+import React, { useEffect, useState, useCallback } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Code2, Copy, Download, FileCode, Check, PlusCircle } from "lucide-react";
 import { api } from "../services/api";
+import { useToast } from "../context/ToastContext";
+import { ErrorBanner, EmptyState, LoadingSkeleton } from "../components/ui/PageState";
 
-export const CodeWorkspacePage: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const projectIdParam = searchParams.get("projectId");
+export const CodeWorkspace: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { success } = useToast();
 
   const [projects, setProjects] = useState<any[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(projectIdParam || "");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(searchParams.get("project") || "");
   const [artifacts, setArtifacts] = useState<any[]>([]);
-  const [selectedArtifact, setSelectedArtifact] = useState<any | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [selectedArtifact, setSelectedArtifact] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [copied, setCopied] = useState(false);
 
-  // Load projects
-  useEffect(() => {
-    api.getProjects().then((projs) => {
-      setProjects(projs || []);
-      if (!selectedProjectId && projs && projs.length > 0) {
-        setSelectedProjectId(projs[0].id);
-      }
-    });
+  const loadArtifacts = useCallback(async (projId: string) => {
+    if (!projId) return;
+    try {
+      const data = await api.getProjectArtifacts(projId);
+      const list = Array.isArray(data) ? data : [];
+      setArtifacts(list);
+      setSelectedArtifact(list[0] || null);
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Failed to load generated artifacts.");
+    }
   }, []);
 
-  // Fetch artifacts for selected project
   useEffect(() => {
-    if (!selectedProjectId) return;
+    let active = true;
     setLoading(true);
-    api.getProjectArtifacts(selectedProjectId)
-      .then((arts) => {
-        setArtifacts(arts || []);
-        if (arts && arts.length > 0) {
-          setSelectedArtifact(arts[0]);
-        } else {
-          setSelectedArtifact(null);
-        }
-        setLoading(false);
+    setErrorMsg("");
+    api
+      .getProjects()
+      .then((list) => {
+        if (!active) return;
+        const arr = Array.isArray(list) ? list : [];
+        setProjects(arr);
+        const target = searchParams.get("project") || arr[0]?.id || "";
+        setSelectedProjectId(target);
+        if (target) return loadArtifacts(target);
       })
-      .catch(() => setLoading(false));
-  }, [selectedProjectId]);
+      .catch((err) => {
+        if (active) setErrorMsg(err?.message || "Failed to load projects.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadArtifacts]);
 
-  const handleCopy = () => {
-    if (!selectedArtifact) return;
-    navigator.clipboard.writeText(selectedArtifact.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async () => {
+    if (!selectedArtifact?.content) return;
+    try {
+      await navigator.clipboard.writeText(selectedArtifact.content);
+      setCopied(true);
+      success("Copied to clipboard", selectedArtifact.file_path);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {}
   };
 
-  const getFileIcon = (name: string) => {
-    if (name.endsWith(".json")) return <FileCode size={15} color="#F59E0B" />;
-    if (name.endsWith(".tsx") || name.endsWith(".ts")) return <FileCode size={15} color="#315EFB" />;
-    if (name.endsWith(".py")) return <FileCode size={15} color="#10B981" />;
-    if (name.endsWith(".md")) return <FileText size={15} color="#6B7280" />;
-    return <FileCode size={15} color="var(--text-secondary)" />;
-  };
+  if (loading) return <LoadingSkeleton rows={2} />;
+
+  if (projects.length === 0) {
+    return (
+      <EmptyState
+        icon={<Code2 size={24} />}
+        title="No code repositories yet"
+        description="Launch a software project to generate full-stack backend, frontend, test, and deployment files."
+        action={<Link to="/app/projects/new" className="btn-primary"><PlusCircle size={14} /> New Project</Link>}
+      />
+    );
+  }
+
+  const lines = (selectedArtifact?.content || "").split("\n");
 
   return (
-    <div style={{ maxWidth: "1500px", margin: "0 auto", display: "flex", flexDirection: "column", height: "calc(100vh - 120px)", gap: "16px" }}>
-      {/* Workspace Toolbar */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          backgroundColor: "#FFFFFF",
-          padding: "12px 20px",
-          borderRadius: "10px",
-          border: "1px solid var(--border-color)",
-          boxShadow: "var(--shadow-sm)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div>
-            <h1 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>
-              Code Workspace
-            </h1>
-            <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
-              Inspect and download generated software repository
-            </div>
-          </div>
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {errorMsg && <ErrorBanner message={errorMsg} onRetry={() => loadArtifacts(selectedProjectId)} />}
 
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>Code Workspace</h1>
+          <p style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>
+            Inspect generated source files, specifications, and download the full ZIP archive.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <select
             className="input-field"
-            style={{ width: "240px", height: "34px" }}
+            style={{ width: 220 }}
             value={selectedProjectId}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
+            onChange={(e) => {
+              setSelectedProjectId(e.target.value);
+              setSearchParams({ project: e.target.value });
+              loadArtifacts(e.target.value);
+            }}
           >
             {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
+              <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
+          {artifacts.length > 0 && (
+            <a href={api.getDownloadUrl(selectedProjectId)} className="btn-primary">
+              <Download size={14} /> Download ZIP
+            </a>
+          )}
         </div>
-
-        {/* Download Codebase Action */}
-        {selectedProjectId && (
-          <a
-            href={api.getDownloadUrl(selectedProjectId)}
-            download
-            className="btn-primary"
-            style={{ padding: "6px 14px", textDecoration: "none" }}
-          >
-            <Download size={14} />
-            <span>Download Complete ZIP</span>
-          </a>
-        )}
       </div>
 
-      {/* Split Code Explorer View */}
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "300px 1fr", gap: "16px", minHeight: 0 }}>
-        {/* File Tree Panel */}
-        <div
-          style={{
-            backgroundColor: "#FFFFFF",
-            border: "1px solid var(--border-color)",
-            borderRadius: "10px",
-            padding: "16px",
-            display: "flex",
-            flexDirection: "column",
-            overflowY: "auto",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px", color: "var(--text-secondary)" }}>
-            <FolderTree size={16} />
-            <span style={{ fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>Project Files ({artifacts.length})</span>
-          </div>
-
-          {loading ? (
-            <div style={{ fontSize: "12px", color: "var(--text-secondary)", padding: "20px 0" }}>Loading file tree...</div>
-          ) : artifacts.length === 0 ? (
-            <div style={{ fontSize: "12px", color: "var(--text-secondary)", padding: "20px 0", textAlign: "center" }}>
-              No files generated yet for this project. Run the workflow to produce artifacts.
+      {artifacts.length === 0 ? (
+        <EmptyState
+          icon={<FileCode size={24} />}
+          title="No artifacts generated for this project yet"
+          description="Open Workflow Studio and start autonomous execution to generate backend, frontend, test, and docs files."
+          action={<Link to={`/app/workflows?project=${selectedProjectId}`} className="btn-primary">Open Workflow Studio</Link>}
+        />
+      ) : (
+        <div className="grid-main-aside" style={{ gridTemplateColumns: "minmax(240px, 280px) minmax(0, 1fr)" }}>
+          {/* File Explorer */}
+          <div className="card" style={{ padding: 12, maxHeight: 620, overflowY: "auto" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", padding: "4px 8px 10px", letterSpacing: "0.05em" }}>
+              FILES ({artifacts.length})
             </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
               {artifacts.map((art) => {
-                const isSelected = selectedArtifact?.id === art.id;
+                const active = selectedArtifact?.id === art.id;
                 return (
                   <button
                     key={art.id}
+                    type="button"
                     onClick={() => setSelectedArtifact(art)}
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "8px",
+                      gap: 8,
                       padding: "8px 10px",
-                      borderRadius: "6px",
+                      borderRadius: 8,
                       border: "none",
-                      backgroundColor: isSelected ? "var(--primary-light)" : "transparent",
-                      color: isSelected ? "var(--primary-accent)" : "var(--text-primary)",
-                      cursor: "pointer",
+                      background: active ? "var(--primary-light)" : "transparent",
+                      color: active ? "var(--primary-accent)" : "var(--text-secondary)",
+                      fontWeight: active ? 600 : 500,
+                      fontSize: 12.5,
                       textAlign: "left",
-                      fontSize: "13px",
-                      fontWeight: isSelected ? 600 : 400,
-                      transition: "all 0.15s ease",
+                      cursor: "pointer",
+                      wordBreak: "break-all",
                     }}
                   >
-                    {getFileIcon(art.file_name)}
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {art.file_path}
-                    </span>
+                    <FileCode size={14} style={{ flexShrink: 0 }} />
+                    <span>{art.file_path}</span>
                   </button>
                 );
               })}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Code Content & Metadata Viewer */}
-        <div
-          style={{
-            backgroundColor: "#FFFFFF",
-            border: "1px solid var(--border-color)",
-            borderRadius: "10px",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          {selectedArtifact ? (
-            <>
-              {/* File Header Bar */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "12px 20px",
-                  borderBottom: "1px solid var(--border-color)",
-                  backgroundColor: "#F9FAFB",
-                }}
-              >
-                <div>
-                  <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
-                    {selectedArtifact.file_path}
-                  </span>
-                  <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
-                    Type: {selectedArtifact.artifact_type} | Language: {selectedArtifact.language} | Size: {selectedArtifact.size_bytes} bytes
-                  </div>
-                </div>
-
-                <button onClick={handleCopy} className="btn-secondary" style={{ padding: "6px 12px" }}>
-                  {copied ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
-                  <span>{copied ? "Copied" : "Copy Code"}</span>
-                </button>
+          {/* Code Viewer */}
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <div
+              style={{
+                padding: "12px 16px",
+                borderBottom: "1px solid var(--border-color)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                background: "var(--bg-main)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {selectedArtifact?.file_path}
+                </span>
+                <span className="badge badge-neutral">{selectedArtifact?.language || "text"}</span>
               </div>
-
-              {/* Code Pre Block */}
-              <div
-                style={{
-                  flex: 1,
-                  padding: "20px",
-                  backgroundColor: "#0F172A",
-                  color: "#F8FAFC",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "13px",
-                  lineHeight: "1.6",
-                  overflowY: "auto",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-all",
-                }}
-              >
-                {selectedArtifact.content}
-              </div>
-            </>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-secondary)", fontSize: "14px" }}>
-              Select a generated file from the left to inspect its code and architecture specifications.
+              <button type="button" className="btn-secondary btn-sm" onClick={handleCopy}>
+                {copied ? <Check size={13} color="var(--success)" /> : <Copy size={13} />}
+                {copied ? "Copied" : "Copy"}
+              </button>
             </div>
-          )}
+            <div
+              style={{
+                background: "#0F172A",
+                color: "#E2E8F0",
+                fontFamily: "var(--font-mono)",
+                fontSize: 12.5,
+                lineHeight: 1.65,
+                maxHeight: 560,
+                overflow: "auto",
+                padding: "14px 0",
+              }}
+            >
+              {lines.map((line: string, idx: number) => (
+                <div key={idx} style={{ display: "flex", padding: "0 16px" }}>
+                  <span style={{ width: 42, flexShrink: 0, color: "#475569", userSelect: "none", textAlign: "right", paddingRight: 14 }}>
+                    {idx + 1}
+                  </span>
+                  <span style={{ whiteSpace: "pre" }}>{line}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

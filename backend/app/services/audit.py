@@ -22,7 +22,6 @@ def log_event(
         ip_address=ip_address,
     )
     db.add(entry)
-    db.commit()
-    db.refresh(entry)
+    db.flush()
     return entry
 

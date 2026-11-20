@@ -85,17 +85,25 @@ def download_project_artifacts(project_id: str, db: Session = Depends(get_db)):
     if not artifacts:
         raise HTTPException(status_code=404, detail="No artifacts generated yet for this project")
 
+    import re
+    from pathlib import PurePosixPath
+
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         for art in artifacts:
-            clean_path = art.file_path.lstrip("/\\")
-            zip_file.writestr(clean_path, art.content)
+            raw_path = (art.file_path or "").replace("\\", "/").lstrip("/")
+            parts = [p for p in PurePosixPath(raw_path).parts if p not in ("", ".", "..")]
+            if not parts:
+                continue
+            clean_path = "/".join(parts)
+            zip_file.writestr(clean_path, art.content or "")
 
     zip_buffer.seek(0)
-    filename = f"{project.slug}-codebase.zip"
+    safe_slug = re.sub(r"[^a-zA-Z0-9._-]+", "-", project.slug or "project").strip("-") or "project"
+    filename = f"{safe_slug}-codebase.zip"
     return Response(
         content=zip_buffer.getvalue(),
         media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
