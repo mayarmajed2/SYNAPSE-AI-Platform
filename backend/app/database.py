@@ -12,7 +12,19 @@ if ENV_PATH.exists():
 else:
     load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://synapse:synapse_dev_2026@localhost:5433/synapse_db")
+def _normalize_database_url(url: str) -> str:
+    """Normalize cloud PostgreSQL URLs (postgres:// or postgresql://) to psycopg3 dialect."""
+    cleaned = (url or "").strip()
+    if cleaned.startswith("postgres://"):
+        return "postgresql+psycopg://" + cleaned[len("postgres://"):]
+    if cleaned.startswith("postgresql://"):
+        return "postgresql+psycopg://" + cleaned[len("postgresql://"):]
+    return cleaned
+
+
+DATABASE_URL = _normalize_database_url(
+    os.getenv("DATABASE_URL", "postgresql+psycopg://synapse:synapse_dev_2026@localhost:5433/synapse_db")
+)
 
 # Fallback SQLite path
 SQLITE_PATH = Path(__file__).resolve().parent.parent / "synapse.db"

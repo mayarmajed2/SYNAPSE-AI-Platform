@@ -239,3 +239,21 @@ def test_phase_3_4_password_reset_billing_and_stripe_hmac(db):
     sig = hmac.new(secret.encode(), f"{ts}.".encode() + payload, hashlib.sha256).hexdigest()
     assert verify_stripe_signature(payload, f"t={ts},v1={sig}", secret) is True
     assert verify_stripe_signature(payload, f"t={ts},v1=tampered", secret) is False
+
+
+def test_normalize_database_url():
+    from app.database import _normalize_database_url
+
+    assert (
+        _normalize_database_url("postgres://u:p@h:5432/db")
+        == "postgresql+psycopg://u:p@h:5432/db"
+    )
+    assert (
+        _normalize_database_url("postgresql://u:p@h:5432/db")
+        == "postgresql+psycopg://u:p@h:5432/db"
+    )
+    assert (
+        _normalize_database_url("postgresql+psycopg://u:p@h:5432/db")
+        == "postgresql+psycopg://u:p@h:5432/db"
+    )
+    assert _normalize_database_url("sqlite:///./synapse.db") == "sqlite:///./synapse.db"
