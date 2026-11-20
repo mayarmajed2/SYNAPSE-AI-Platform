@@ -1,21 +1,29 @@
 import React, { useEffect, useState } from "react";
 import { CheckSquare, Search, Filter, RotateCcw } from "lucide-react";
 import { api } from "../services/api";
+import { useToast } from "../context/ToastContext";
+import { ErrorBanner } from "../components/ui/PageState";
 
 export const TaskCenterPage: React.FC = () => {
+  const { success, error } = useToast();
   const [tasks, setTasks] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const fetchTasks = () => {
     setLoading(true);
+    setErrorMsg("");
     api.getTasks(undefined, statusFilter || undefined)
       .then((data) => {
         setTasks(data || []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        setErrorMsg(err?.message || "Failed to load task queue.");
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -25,9 +33,10 @@ export const TaskCenterPage: React.FC = () => {
   const handleRetry = async (taskId: string) => {
     try {
       await api.retryTask(taskId);
+      success("Task re-queued", "The task status has been reset to pending.");
       fetchTasks();
     } catch (err: any) {
-      alert("Failed to retry task: " + err.message);
+      error("Failed to retry task", err.message);
     }
   };
 
@@ -47,13 +56,15 @@ export const TaskCenterPage: React.FC = () => {
         </p>
       </div>
 
+      {errorMsg && <ErrorBanner message={errorMsg} onRetry={fetchTasks} />}
+
       {/* Filter & Search Bar */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          backgroundColor: "#FFFFFF",
+          backgroundColor: "var(--bg-card)",
           padding: "12px 16px",
           borderRadius: "10px",
           border: "1px solid var(--border-color)",

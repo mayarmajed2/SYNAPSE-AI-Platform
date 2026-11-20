@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+synapse.db
+project_repos/
+sandbox_workspaces/
+tests/
+.env
+.git/

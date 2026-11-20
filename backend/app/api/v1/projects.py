@@ -37,7 +37,8 @@ async def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
             db.add(workspace)
             db.flush()
 
-    slug = f"{slugify(data.name)}-{int(db.query(Project).count()) + 1}"
+    import uuid as _uuid
+    slug = f"{slugify(data.name)}-{_uuid.uuid4().hex[:6]}"
     project = Project(
         workspace_id=workspace.id,
         name=data.name,

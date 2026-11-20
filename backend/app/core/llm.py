@@ -51,10 +51,11 @@ class LLMClient:
 
         if self.client:
             try:
-                # Append JSON instruction if response_model is specified
+                # Deep-copy message dicts so we never mutate caller's input
                 system_suffix = "\nRespond strictly in valid JSON matching the required schema. Do not include markdown code block formatting or preamble."
-                formatted_messages = list(messages)
-                formatted_messages[0]["content"] += system_suffix
+                formatted_messages = [dict(m) for m in messages]
+                if formatted_messages:
+                    formatted_messages[0]["content"] = str(formatted_messages[0].get("content", "")) + system_suffix
 
                 response = self.client.chat.completions.create(
                     model=chosen_model,
@@ -94,18 +95,18 @@ class LLMClient:
             except Exception as e:
                 print(f"Groq API call error: {e}. Falling back to domain generator.")
 
-        # Fallback generator when API key is unconfigured or rate limited
-        latency_ms = int((time.time() - start_time) * 1000) + 120
-        prompt_tokens = len(str(messages)) // 4
-        completion_tokens = 280
-        total_tokens = prompt_tokens + completion_tokens
-        cost = estimate_cost(chosen_model, prompt_tokens, completion_tokens)
+        # Fallback generator when API key is unconfigured or rate limited (honest 0-cost tracking)
+        latency_ms = max(1, int((time.time() - start_time) * 1000))
+        prompt_tokens = 0
+        completion_tokens = 0
+        total_tokens = 0
+        cost = 0.0
 
         if db and project_id:
             record = LLMUsageRecord(
                 project_id=project_id,
                 agent_name=agent_name,
-                provider="groq (offline/preview)",
+                provider="offline-template",
                 model=chosen_model,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,

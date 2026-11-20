@@ -53,7 +53,12 @@ class CodeSandbox:
     @staticmethod
     def get_workspace_path(project_id: str) -> Path:
         """Get or create isolated filesystem workspace for a project."""
-        p = SANDBOX_ROOT / project_id
+        if not project_id or "/" in project_id or "\\" in project_id or ".." in project_id:
+            raise ValueError("Invalid project_id for sandbox workspace")
+        root = SANDBOX_ROOT.resolve()
+        p = (root / project_id).resolve()
+        if not str(p).startswith(str(root)):
+            raise ValueError("Sandbox workspace path escapes SANDBOX_ROOT")
         p.mkdir(parents=True, exist_ok=True)
         return p
 

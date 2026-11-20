@@ -1,513 +1,399 @@
-import React, { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import React, { useEffect, useState, useCallback, useRef } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Play,
   Pause,
   RotateCcw,
-  AlertTriangle,
+  Square,
   ZoomIn,
   ZoomOut,
   Maximize2,
-  Code2,
-  FileCheck,
-  Square,
+  ArrowUpRight,
+  GitBranch,
+  Plus,
 } from "lucide-react";
 import { api } from "../services/api";
 import { useWebSocket } from "../hooks/useWebSocket";
+import { useToast } from "../context/ToastContext";
+import { useAuth } from "../context/AuthContext";
+import { AgentGlyph } from "../components/ui/AgentGlyph";
+import { ErrorBanner, EmptyState, LoadingSkeleton } from "../components/ui/PageState";
 
-interface NodeItem {
-  id: string;
-  node_key: string;
-  agent_role: string;
-  title: string;
-  status: "pending" | "running" | "completed" | "failed" | "waiting_approval" | "skipped";
-  position_x: number;
-  position_y: number;
-  duration_ms: number;
-  error_message?: string;
-}
-
-export const WorkflowStudioPage: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const projectIdParam = searchParams.get("projectId");
+export const WorkflowStudio: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { success, error } = useToast();
+  const { user } = useAuth();
 
   const [projects, setProjects] = useState<any[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(projectIdParam || "");
-  const [workflow, setWorkflow] = useState<any | null>(null);
-  const [selectedNode, setSelectedNode] = useState<NodeItem | null>(null);
-  const [pendingApproval, setPendingApproval] = useState<any | null>(null);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [pulse, setPulse] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(searchParams.get("project") || "");
+  const [workflow, setWorkflow] = useState<any>(null);
+  const [approvals, setApprovals] = useState<any[]>([]);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  useEffect(() => {
-    const interval = setInterval(() => setPulse(p => !p), 800);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Load available projects
-  useEffect(() => {
-    api.getProjects().then((projs) => {
-      setProjects(projs || []);
-      if (!selectedProjectId && projs && projs.length > 0) {
-        setSelectedProjectId(projs[0].id);
-      }
-    });
-  }, []);
-
-  // Fetch workflow when selected project changes
-  const loadWorkflow = () => {
-    if (!selectedProjectId) return;
-    api.getProjectWorkflow(selectedProjectId)
-      .then((wf) => {
-        setWorkflow(wf);
-        if (wf && wf.nodes && wf.nodes.length > 0) {
-          setSelectedNode(wf.nodes[0]);
-        }
-      })
-      .catch(() => {});
-
-    // Check if there are pending approvals for this project
-    api.getApprovals(selectedProjectId, "pending")
-      .then((apps) => {
-        if (apps && apps.length > 0) setPendingApproval(apps[0]);
-        else setPendingApproval(null);
-      })
-      .catch(() => {});
-  };
-
-  useEffect(() => {
-    loadWorkflow();
-  }, [selectedProjectId]);
-
-  // Real-time WebSocket live updates
-  useWebSocket(selectedProjectId, (event) => {
-    if (
-      event.event.startsWith("workflow.") ||
-      event.event.startsWith("agent.") ||
-      event.event.startsWith("task.") ||
-      event.event.startsWith("approval.")
-    ) {
-      loadWorkflow();
-    }
+  const [zoom, setZoom] = useState(0.84);
+  const [pan, setPan] = useState({ x: 24, y: 24 });
+  const dragRef = useRef<{ dragging: boolean; startX: number; startY: number; origX: number; origY: number }>({
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    origX: 0,
+    origY: 0,
   });
 
-  const handleStart = async () => {
-    if (!workflow) return;
+  const loadWorkflow = useCallback(async (projId: string) => {
+    if (!projId) return;
     try {
-      await api.startWorkflow(workflow.id);
-      loadWorkflow();
+      const [wf, ap] = await Promise.all([
+        api.getProjectWorkflow(projId),
+        api.getApprovals(projId, "pending").catch(() => []),
+      ]);
+      setWorkflow(wf);
+      setApprovals(Array.isArray(ap) ? ap : []);
+      setSelectedNodeId((prev) => {
+        const nodes = wf?.nodes || [];
+        if (prev && nodes.some((n: any) => n.id === prev)) return prev;
+        return nodes[0]?.id || null;
+      });
     } catch (err: any) {
-      alert("Error starting workflow: " + err.message);
+      setErrorMsg(err?.message || "Failed to load workflow.");
     }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setErrorMsg("");
+    api
+      .getProjects()
+      .then((list) => {
+        if (!active) return;
+        const arr = Array.isArray(list) ? list : [];
+        setProjects(arr);
+        const target = searchParams.get("project") || arr[0]?.id || "";
+        setSelectedProjectId(target);
+        if (target) return loadWorkflow(target);
+      })
+      .catch((err) => {
+        if (active) setErrorMsg(err?.message || "Failed to load projects.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadWorkflow]);
+
+  useWebSocket(selectedProjectId || undefined, () => {
+    if (selectedProjectId) loadWorkflow(selectedProjectId);
+  });
+
+  const handleProjectChange = (projId: string) => {
+    setSelectedProjectId(projId);
+    setSearchParams({ project: projId });
+    loadWorkflow(projId);
   };
 
-  const handlePause = async () => {
-    if (!workflow) return;
+  const runAction = async (action: "start" | "pause" | "resume" | "cancel") => {
+    if (!workflow?.id) return;
+    setActionBusy(true);
     try {
-      await api.pauseWorkflow(workflow.id);
-      loadWorkflow();
+      if (action === "start") await api.startWorkflow(workflow.id);
+      if (action === "pause") await api.pauseWorkflow(workflow.id);
+      if (action === "resume") await api.resumeWorkflow(workflow.id);
+      if (action === "cancel") await api.cancelWorkflow(workflow.id);
+      success(`Workflow ${action}`, "Live graph updated.");
+      await loadWorkflow(selectedProjectId);
     } catch (err: any) {
-      alert("Error pausing workflow: " + err.message);
+      error("Workflow action failed", err?.message);
+    } finally {
+      setActionBusy(false);
     }
   };
 
-  const handleResume = async () => {
-    if (!workflow) return;
+  const handleResolveApproval = async (approvalId: string, decision: "approved" | "rejected") => {
+    setActionBusy(true);
     try {
-      await api.resumeWorkflow(workflow.id);
-      loadWorkflow();
+      await api.resolveApproval(approvalId, decision, `${decision} from Workflow Studio`, user?.full_name);
+      success(`Gate ${decision}`, decision === "approved" ? "Pipeline resumed." : "Pipeline halted.");
+      await loadWorkflow(selectedProjectId);
     } catch (err: any) {
-      alert("Error resuming workflow: " + err.message);
+      error("Could not resolve approval", err?.message);
+    } finally {
+      setActionBusy(false);
     }
   };
 
-  const handleCancel = async () => {
-    if (!workflow) return;
-    if (window.confirm("Cancel active workflow execution?")) {
-      try {
-        await api.cancelWorkflow(workflow.id);
-        loadWorkflow();
-      } catch (err: any) {
-        alert("Error cancelling workflow: " + err.message);
-      }
-    }
-  };
+  if (loading) return <LoadingSkeleton rows={2} />;
 
-  const handleResolveApproval = async (decision: "approved" | "rejected") => {
-    if (!pendingApproval) return;
-    try {
-      await api.resolveApproval(pendingApproval.id, decision, "Resolved via Workflow Studio gate");
-      setPendingApproval(null);
-      loadWorkflow();
-    } catch (err: any) {
-      alert("Error resolving approval: " + err.message);
-    }
-  };
+  if (projects.length === 0) {
+    return (
+      <EmptyState
+        icon={<GitBranch size={22} />}
+        title="No workflows yet"
+        description="Create a software project to visualize its 10-stage multi-agent graph."
+        action={<Link to="/app/projects/new" className="btn-accent"><Plus size={14} /> New Project</Link>}
+      />
+    );
+  }
 
-  const getNodeColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return { border: "#10B981", bg: "#F0FDF4", badge: "badge-success" };
-      case "running":
-        return { border: "#315EFB", bg: "#EFF6FF", badge: "badge-primary" };
-      case "failed":
-        return { border: "#EF4444", bg: "#FEF2F2", badge: "badge-error" };
-      case "waiting_approval":
-        return { border: "#F59E0B", bg: "#FFFBEB", badge: "badge-warning" };
-      default:
-        return { border: "var(--border-color)", bg: "#FFFFFF", badge: "badge-neutral" };
-    }
-  };
+  const nodes: any[] = workflow?.nodes || [];
+  const edges: any[] = workflow?.edges || [];
+  const nodeMap = new Map<string, any>();
+  nodes.forEach((n) => {
+    if (n.node_key) nodeMap.set(n.node_key, n);
+    if (n.id) nodeMap.set(n.id, n);
+  });
+  const selectedNode = nodes.find((n) => n.id === selectedNodeId) || nodes[0] || null;
+  const pendingApproval = approvals[0] || null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 120px)", gap: "16px" }}>
-      {/* Studio Header Toolbar */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          backgroundColor: "#FFFFFF",
-          padding: "12px 20px",
-          borderRadius: "10px",
-          border: "1px solid var(--border-color)",
-          boxShadow: "var(--shadow-sm)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div>
-            <h1 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>
-              Workflow Studio
-            </h1>
-            <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
-              Interactive Multi-Agent Graph Engine
-            </div>
-          </div>
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {errorMsg && <ErrorBanner message={errorMsg} onRetry={() => loadWorkflow(selectedProjectId)} />}
 
-          {/* Project Switcher */}
+      <div className="card" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <h1 style={{ fontSize: 19, fontWeight: 800 }}>Workflow Studio</h1>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Interactive multi-agent graph · Drag to pan</div>
+          </div>
           <select
             className="input-field"
-            style={{ width: "220px", height: "34px" }}
+            style={{ width: 220 }}
             value={selectedProjectId}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
+            onChange={(e) => handleProjectChange(e.target.value)}
           >
             {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
+              <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
         </div>
 
-        {/* Execution Controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           {workflow?.status === "running" ? (
             <>
-              <button onClick={handlePause} className="btn-secondary" style={{ padding: "6px 12px" }}>
-                <Pause size={14} />
-                <span>Pause</span>
+              <button type="button" className="btn-secondary btn-sm" onClick={() => runAction("pause")} disabled={actionBusy}>
+                <Pause size={13} /> Pause
               </button>
-              <button onClick={handleCancel} className="btn-danger" style={{ padding: "6px 12px" }}>
-                <Square size={14} />
-                <span>Stop</span>
+              <button type="button" className="btn-danger btn-sm" onClick={() => runAction("cancel")} disabled={actionBusy}>
+                <Square size={13} /> Cancel
               </button>
             </>
           ) : workflow?.status === "paused" ? (
-            <button onClick={handleResume} className="btn-primary" style={{ padding: "6px 12px" }}>
-              <Play size={14} />
-              <span>Resume</span>
+            <button type="button" className="btn-accent btn-sm" onClick={() => runAction("resume")} disabled={actionBusy}>
+              <Play size={13} /> Resume
             </button>
           ) : (
             <button
-              onClick={handleStart}
-              disabled={workflow?.status === "completed"}
-              className="btn-primary"
-              style={{ padding: "6px 12px" }}
+              type="button"
+              className="btn-accent btn-sm"
+              onClick={() => runAction("start")}
+              disabled={actionBusy || workflow?.status === "completed"}
             >
-              <Play size={14} />
-              <span>{workflow?.status === "completed" ? "Execution Completed" : "Run Workflow"}</span>
+              <Play size={13} /> {workflow?.status === "completed" ? "Completed" : "Run Pipeline"}
             </button>
           )}
-
-          <button onClick={loadWorkflow} className="btn-secondary" style={{ padding: "6px 10px" }} title="Refresh graph">
-            <RotateCcw size={14} />
+          <button type="button" className="btn-secondary btn-sm" onClick={() => loadWorkflow(selectedProjectId)} aria-label="Refresh">
+            <RotateCcw size={13} />
           </button>
         </div>
       </div>
 
-      {/* Human Approval Required Gate Banner */}
       {pendingApproval && (
-        <div
-          style={{
-            backgroundColor: "var(--warning-light)",
-            border: "1px solid #FCD34D",
-            borderRadius: "8px",
-            padding: "12px 20px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <AlertTriangle size={20} color="var(--warning)" />
-            <div>
-              <div style={{ fontWeight: 600, fontSize: "13px", color: "#92400E" }}>{pendingApproval.title}</div>
-              <div style={{ fontSize: "12px", color: "#B45309" }}>{pendingApproval.description}</div>
-            </div>
+        <div className="ink-panel" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--primary-accent)" }}>Approval Gate Pending</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{pendingApproval.title}</div>
           </div>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={() => handleResolveApproval("rejected")} className="btn-danger" style={{ padding: "6px 12px", fontSize: "12px" }}>
-              Reject
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" className="btn-accent btn-sm" onClick={() => handleResolveApproval(pendingApproval.id, "approved")} disabled={actionBusy}>
+              Approve &amp; Continue
             </button>
-            <button onClick={() => handleResolveApproval("approved")} className="btn-primary" style={{ padding: "6px 12px", fontSize: "12px" }}>
-              Approve & Proceed
+            <button type="button" className="btn-danger btn-sm" onClick={() => handleResolveApproval(pendingApproval.id, "rejected")} disabled={actionBusy}>
+              Reject
             </button>
           </div>
         </div>
       )}
 
-      {/* Canvas + Inspector Split View */}
-      <div style={{ flex: 1, display: "flex", gap: "16px", minHeight: 0 }}>
-        {/* Visual Graph Canvas */}
+      <div className="grid-main-aside">
         <div
+          className="card"
           style={{
-            flex: 1,
-            backgroundColor: "#FFFFFF",
-            border: "1px solid var(--border-color)",
-            borderRadius: "12px",
+            padding: 0,
+            height: 540,
             position: "relative",
             overflow: "hidden",
-            backgroundImage: "radial-gradient(#E5E7EB 1px, transparent 1px)",
-            backgroundSize: "20px 20px",
+            backgroundColor: "#08090C",
+            backgroundImage: "radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+            cursor: "grab",
+            userSelect: "none",
           }}
+          onMouseDown={(e) => {
+            if ((e.target as HTMLElement).closest("button")) return;
+            dragRef.current = { dragging: true, startX: e.clientX, startY: e.clientY, origX: pan.x, origY: pan.y };
+          }}
+          onMouseMove={(e) => {
+            if (!dragRef.current.dragging) return;
+            setPan({
+              x: dragRef.current.origX + (e.clientX - dragRef.current.startX),
+              y: dragRef.current.origY + (e.clientY - dragRef.current.startY),
+            });
+          }}
+          onMouseUp={() => { dragRef.current.dragging = false; }}
+          onMouseLeave={() => { dragRef.current.dragging = false; }}
         >
-          {/* Zoom Controls Overlay */}
           <div
             style={{
-              position: "absolute",
-              bottom: "16px",
-              left: "16px",
-              display: "flex",
-              gap: "4px",
-              backgroundColor: "#FFFFFF",
-              border: "1px solid var(--border-color)",
-              borderRadius: "8px",
-              padding: "4px",
-              boxShadow: "var(--shadow-sm)",
-              zIndex: 10,
-            }}
-          >
-            <button
-              onClick={() => setZoomLevel((z) => Math.min(z + 0.15, 1.6))}
-              className="btn-secondary"
-              style={{ padding: "6px 8px" }}
-            >
-              <ZoomIn size={14} />
-            </button>
-            <button
-              onClick={() => setZoomLevel((z) => Math.max(z - 0.15, 0.6))}
-              className="btn-secondary"
-              style={{ padding: "6px 8px" }}
-            >
-              <ZoomOut size={14} />
-            </button>
-            <button
-              onClick={() => setZoomLevel(1)}
-              className="btn-secondary"
-              style={{ padding: "6px 8px" }}
-            >
-              <Maximize2 size={14} />
-            </button>
-          </div>
-
-          {/* Minimap Status Overlay */}
-          <div
-            style={{
-              position: "absolute",
-              bottom: "16px",
-              right: "16px",
-              backgroundColor: "rgba(255,255,255,0.92)",
-              backdropFilter: "blur(4px)",
-              border: "1px solid var(--border-color)",
-              borderRadius: "8px",
-              padding: "10px 14px",
-              fontSize: "11px",
-              color: "var(--text-secondary)",
-              zIndex: 10,
-            }}
-          >
-            <div>
-              Workflow: <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{workflow?.status || "Idle"}</span>
-            </div>
-            <div>
-              Current Step: <span style={{ fontWeight: 600, color: "var(--primary-accent)" }}>{workflow?.current_step || "Standby"}</span>
-            </div>
-          </div>
-
-          {/* Renderable SVG Canvas with Zoom */}
-          <div
-            style={{
-              width: "1920px",
-              height: "800px",
-              transform: `scale(${zoomLevel})`,
-              transformOrigin: "top left",
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: "0 0",
               position: "relative",
+              width: 2200,
+              height: 800,
             }}
           >
-            {/* SVG Connecting Edges */}
-            <svg
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                pointerEvents: "none",
-              }}
-            >
+            <svg width={2200} height={800} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
               <defs>
-                <marker
-                  id="arrowhead"
-                  markerWidth="8"
-                  markerHeight="6"
-                  refX="8"
-                  refY="3"
-                  orient="auto"
-                >
-                  <polygon points="0 0, 8 3, 0 6" fill="#94A3B8" />
+                <marker id="synapse-arrow-mint" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <path d="M0,0 L7,3.5 L0,7 Z" fill="#7C5CFF" />
+                </marker>
+                <marker id="synapse-arrow-muted" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <path d="M0,0 L7,3.5 L0,7 Z" fill="rgba(255,255,255,0.35)" />
                 </marker>
               </defs>
-
-              <line x1="230" y1="190" x2="280" y2="110" stroke="#CBD5E1" strokeWidth="2" markerEnd="url(#arrowhead)" />
-              <line x1="460" y1="110" x2="520" y2="110" stroke="#CBD5E1" strokeWidth="2" markerEnd="url(#arrowhead)" />
-              <line x1="700" y1="110" x2="760" y2="70" stroke="#CBD5E1" strokeWidth="2" markerEnd="url(#arrowhead)" />
-              <line x1="700" y1="110" x2="760" y2="190" stroke="#CBD5E1" strokeWidth="2" markerEnd="url(#arrowhead)" />
-              <line x1="940" y1="70" x2="1000" y2="130" stroke="#CBD5E1" strokeWidth="2" markerEnd="url(#arrowhead)" />
-              <line x1="940" y1="190" x2="1000" y2="130" stroke="#CBD5E1" strokeWidth="2" markerEnd="url(#arrowhead)" />
-              <line x1="1180" y1="130" x2="1220" y2="80" stroke="#CBD5E1" strokeWidth="2" markerEnd="url(#arrowhead)" />
-              <line x1="1180" y1="130" x2="1220" y2="200" stroke="#CBD5E1" strokeWidth="2" markerEnd="url(#arrowhead)" />
-              <line x1="1400" y1="80" x2="1460" y2="140" stroke="#CBD5E1" strokeWidth="2" markerEnd="url(#arrowhead)" />
-              <line x1="1400" y1="200" x2="1460" y2="140" stroke="#CBD5E1" strokeWidth="2" markerEnd="url(#arrowhead)" />
-              <line x1="1640" y1="140" x2="1680" y2="140" stroke="#CBD5E1" strokeWidth="2" markerEnd="url(#arrowhead)" />
+              {edges.map((edge: any) => {
+                const srcKey = edge.source_node_id || edge.source_node_key;
+                const tgtKey = edge.target_node_id || edge.target_node_key;
+                const src = nodeMap.get(srcKey);
+                const tgt = nodeMap.get(tgtKey);
+                if (!src || !tgt) return null;
+                const x1 = (src.position_x || 0) + 216;
+                const y1 = (src.position_y || 0) + 46;
+                const x2 = (tgt.position_x || 0);
+                const y2 = (tgt.position_y || 0) + 46;
+                const isActive = src.status === "running" || tgt.status === "running";
+                const isDone = src.status === "completed";
+                return (
+                  <line
+                    key={edge.id || `${srcKey}-${tgtKey}`}
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke={isActive || isDone ? "#7C5CFF" : "rgba(255,255,255,0.22)"}
+                    strokeWidth={isActive ? 2.4 : isDone ? 1.8 : 1.3}
+                    className={isActive ? "edge-animated" : undefined}
+                    markerEnd={isActive || isDone ? "url(#synapse-arrow-mint)" : "url(#synapse-arrow-muted)"}
+                  />
+                );
+              })}
             </svg>
 
-            {/* Interactive Graph Nodes */}
-            {workflow?.nodes?.map((node: NodeItem) => {
-              const colors = getNodeColor(node.status);
+            {nodes.map((node: any) => {
               const isSelected = selectedNode?.id === node.id;
+              const isRunning = node.status === "running";
+              const isCompleted = node.status === "completed";
               return (
-                <div
+                <button
                   key={node.id}
-                  onClick={() => setSelectedNode(node)}
+                  type="button"
+                  onClick={() => setSelectedNodeId(node.id)}
                   style={{
                     position: "absolute",
-                    left: `${node.position_x}px`,
-                    top: `${node.position_y}px`,
-                    width: "180px",
-                    padding: "12px 14px",
-                    backgroundColor: colors.bg,
-                    border: isSelected ? "2px solid var(--primary-accent)" : `1px solid ${colors.border}`,
-                    borderRadius: "10px",
-                    boxShadow: node.status === 'running'
-                      ? (pulse ? '0 0 0 3px rgba(49,94,251,0.4)' : '0 0 0 3px rgba(49,94,251,0.1)')
-                      : isSelected ? 'var(--shadow-md)' : 'var(--shadow-sm)',
+                    left: node.position_x || 0,
+                    top: node.position_y || 0,
+                    width: 216,
+                    padding: "13px 15px",
+                    borderRadius: 14,
+                    background: isSelected ? "#181E29" : "#12151C",
+                    color: "#FFFFFF",
+                    border: isSelected
+                      ? "1.5px solid #7C5CFF"
+                      : isCompleted
+                      ? "1px solid rgba(16, 229, 147, 0.35)"
+                      : "1px solid rgba(255, 255, 255, 0.12)",
+                    boxShadow: isSelected ? "0 8px 28px rgba(16, 229, 147, 0.18)" : "0 6px 18px rgba(0, 0, 0, 0.45)",
+                    textAlign: "left",
                     cursor: "pointer",
-                    transition: "all 0.15s ease",
-                    zIndex: 5,
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)" }}>
-                      {node.agent_role.replace("_", " ")}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <AgentGlyph role={node.agent_role} size={18} active={isRunning || isSelected || isCompleted} />
+                    <span className={`badge ${isRunning || isCompleted ? "badge-success" : "badge-neutral"}`} style={{ fontSize: 10 }}>
+                      {node.status}
                     </span>
-                    <span className={`badge ${colors.badge}`}>{node.status}</span>
                   </div>
-                  <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", lineHeight: "1.3" }}>
-                    {node.title}
+                  <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25 }}>{node.title || node.label}</div>
+                  <div className="tabular-nums" style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 5 }}>
+                    {node.duration_ms ? `${(node.duration_ms / 1000).toFixed(2)}s` : "Queued"}
                   </div>
-                  {node.duration_ms > 0 && (
-                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "6px" }}>
-                      ⏱ {(node.duration_ms / 1000).toFixed(2)}s
-                    </div>
-                  )}
-                </div>
+                </button>
               );
             })}
           </div>
+
+          <div style={{ position: "absolute", left: 14, bottom: 14, display: "flex", gap: 4, background: "#14171F", padding: 5, borderRadius: 10, border: "1px solid var(--border-color)" }}>
+            <button type="button" className="btn-ghost btn-sm" onClick={() => setZoom((z) => Math.min(1.4, z + 0.1))} aria-label="Zoom in"><ZoomIn size={14} /></button>
+            <button type="button" className="btn-ghost btn-sm" onClick={() => setZoom((z) => Math.max(0.45, z - 0.1))} aria-label="Zoom out"><ZoomOut size={14} /></button>
+            <button type="button" className="btn-ghost btn-sm" onClick={() => { setZoom(0.75); setPan({ x: 20, y: 20 }); }} aria-label="Reset view"><Maximize2 size={14} /></button>
+          </div>
+
+          <div style={{ position: "absolute", right: 14, bottom: 14, background: "#14171F", padding: "8px 14px", borderRadius: 10, border: "1px solid var(--border-color)", fontSize: 12 }}>
+            Status: <strong style={{ color: "var(--primary-accent)", textTransform: "capitalize" }}>{workflow?.status || "pending"}</strong> · {workflow?.current_step || "Queued"}
+          </div>
         </div>
 
-        {/* Node Inspection Drawer */}
-        <div
-          style={{
-            width: "360px",
-            backgroundColor: "#FFFFFF",
-            border: "1px solid var(--border-color)",
-            borderRadius: "12px",
-            padding: "24px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "16px",
-            overflowY: "auto",
-          }}
-        >
+        <div className="card">
           {selectedNode ? (
-            <>
-              <div style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
-                <span className={`badge ${getNodeColor(selectedNode.status).badge}`}>{selectedNode.status}</span>
-                <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginTop: "8px" }}>
-                  {selectedNode.title}
-                </h3>
-                <div style={{ fontSize: "12px", color: "var(--text-secondary)", textTransform: "capitalize", marginTop: "2px" }}>
-                  Assigned: {selectedNode.agent_role.replace("_", " ")} Agent
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Stage Inspector</span>
+                <span className={`badge ${selectedNode.status === "completed" || selectedNode.status === "running" ? "badge-success" : "badge-neutral"}`}>
+                  {selectedNode.status}
+                </span>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 42, height: 42, borderRadius: 12, background: "var(--primary-light)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <AgentGlyph role={selectedNode.agent_role} size={22} active />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: 17, fontWeight: 700 }}>{selectedNode.title || selectedNode.label}</h2>
+                  <div style={{ fontSize: 12.5, color: "var(--text-muted)", textTransform: "capitalize" }}>
+                    {(selectedNode.agent_role || "").replace(/_/g, " ")}
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <h4 style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "4px" }}>
-                  Execution Duration
-                </h4>
-                <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
-                  {selectedNode.duration_ms > 0 ? `${(selectedNode.duration_ms / 1000).toFixed(2)}s` : "Pending execution"}
+              <div style={{ padding: 14, borderRadius: 12, background: "#161922", border: "1px solid var(--border-color)" }}>
+                <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>Execution Duration</div>
+                <div className="tabular-nums" style={{ fontSize: 22, fontWeight: 800, marginTop: 2 }}>
+                  {selectedNode.duration_ms ? `${(selectedNode.duration_ms / 1000).toFixed(2)}s` : "—"}
                 </div>
               </div>
 
-              <div>
-                <h4 style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "6px" }}>
-                  Responsibilities & Artifacts
-                </h4>
-                <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.4" }}>
-                  Autonomous agent decomposes prompt, invokes structured LLM generation, validates outputs, and commits code artifacts to project repository.
-                </p>
-              </div>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                Autonomous stage commits versioned artifacts to the project repository and logs telemetry to the audit trail.
+              </p>
 
-              <div>
-                <h4 style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "6px" }}>
-                  Quick Nav to Output
-                </h4>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <a
-                    href={`/workspace?projectId=${selectedProjectId}`}
-                    className="btn-secondary"
-                    style={{ fontSize: "12px", padding: "8px" }}
-                  >
-                    <Code2 size={14} />
-                    <span>View Generated Code</span>
-                  </a>
-                  <a
-                    href={`/testing?projectId=${selectedProjectId}`}
-                    className="btn-secondary"
-                    style={{ fontSize: "12px", padding: "8px" }}
-                  >
-                    <FileCheck size={14} />
-                    <span>Inspect QA Assertions</span>
-                  </a>
-                </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <Link to={`/app/code?project=${selectedProjectId}`} className="btn-secondary" style={{ width: "100%", justifyContent: "space-between" }}>
+                  <span>View Generated Code</span> <ArrowUpRight size={14} />
+                </Link>
+                <Link to={`/app/testing?project=${selectedProjectId}`} className="btn-secondary" style={{ width: "100%", justifyContent: "space-between" }}>
+                  <span>QA Assertions</span> <ArrowUpRight size={14} />
+                </Link>
+                <Link to={`/app/security?project=${selectedProjectId}`} className="btn-secondary" style={{ width: "100%", justifyContent: "space-between" }}>
+                  <span>Security Audit</span> <ArrowUpRight size={14} />
+                </Link>
               </div>
-            </>
-          ) : (
-            <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: "40px 0" }}>
-              Click any node in the graph to inspect inputs, outputs, and status.
             </div>
+          ) : (
+            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Select a node to inspect its details.</div>
           )}
         </div>
       </div>

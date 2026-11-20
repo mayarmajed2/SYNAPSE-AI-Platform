@@ -51,7 +51,7 @@ export const ProjectDetailsPage: React.FC = () => {
     return (
       <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "60px 0", textAlign: "center" }}>
         <h2 style={{ fontSize: "18px", color: "var(--text-primary)" }}>Project not found</h2>
-        <Link to="/projects" className="btn-secondary" style={{ marginTop: "16px", display: "inline-flex" }}>
+        <Link to="/app/projects" className="btn-secondary" style={{ marginTop: "16px", display: "inline-flex" }}>
           <ArrowLeft size={14} />
           <span>Back to Projects</span>
         </Link>
@@ -62,18 +62,18 @@ export const ProjectDetailsPage: React.FC = () => {
   return (
     <div style={{ maxWidth: "1300px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* Top Breadcrumb & Action Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
         <Link
-          to="/projects"
+          to="/app/projects"
           style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-secondary)", textDecoration: "none" }}
         >
           <ArrowLeft size={16} />
           <span>All Projects</span>
         </Link>
 
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <Link
-            to={`/workflow-studio?projectId=${details.id}`}
+            to={`/app/workflows?project=${details.id}`}
             className="btn-primary"
             style={{ padding: "8px 14px", fontSize: "13px" }}
           >
@@ -81,12 +81,12 @@ export const ProjectDetailsPage: React.FC = () => {
             <span>Open in Workflow Studio</span>
           </Link>
           <Link
-            to={`/workspace?projectId=${details.id}`}
+            to={`/app/code?project=${details.id}`}
             className="btn-secondary"
             style={{ padding: "8px 14px", fontSize: "13px" }}
           >
             <Code2 size={15} />
-            <span>Workspace</span>
+            <span>Code Workspace</span>
           </Link>
         </div>
       </div>

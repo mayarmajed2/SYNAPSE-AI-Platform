@@ -174,24 +174,32 @@ DEFAULT_AGENTS = [
 
 
 def seed_database(db: Session = None):
-    """Seed agents, default user, and default workspace."""
+    """Seed 10 specialized agents, default user, and default workspace without overwriting live metrics."""
+    from app.core.security import hash_password
+
     close_db = False
     if db is None:
         db = SessionLocal()
         close_db = True
 
     try:
-        # 1. Seed or get default user
-        default_user = db.query(User).filter(User.email == "architect@synapse.ai").first()
+        # 1. Seed or get default demo user
+        default_user = (
+            db.query(User).filter(User.email == "demo@synapse.ai").first()
+            or db.query(User).filter(User.email == "architect@synapse.ai").first()
+        )
         if not default_user:
             default_user = User(
-                email="architect@synapse.ai",
+                email="demo@synapse.ai",
                 full_name="Principal Engineer",
+                password_hash=hash_password("SynapseDemo2026!"),
                 role="admin",
                 is_active=True,
             )
             db.add(default_user)
             db.flush()
+        elif not default_user.password_hash:
+            default_user.password_hash = hash_password("SynapseDemo2026!")
 
         # 2. Seed default workspace
         default_workspace = db.query(Workspace).filter(Workspace.slug == "default-workspace").first()
@@ -200,24 +208,27 @@ def seed_database(db: Session = None):
                 name="SYNAPSE HQ",
                 slug="default-workspace",
                 description="Primary autonomous software engineering workspace",
+                plan="pro",
+                settings_json={},
                 owner_id=default_user.id,
             )
             db.add(default_workspace)
             db.flush()
 
-        # 3. Seed the 9 specialized agents
+        # 3. Seed the 10 specialized agents (preserve live task metrics on existing rows!)
+        STATIC_FIELDS = ("name", "display_name", "description", "system_prompt", "avatar_color", "capabilities")
         for agent_data in DEFAULT_AGENTS:
             existing = db.query(Agent).filter(Agent.role == agent_data["role"]).first()
             if not existing:
                 agent = Agent(**agent_data)
                 db.add(agent)
             else:
-                # Update agent fields in case definitions were updated
-                for key, val in agent_data.items():
-                    setattr(existing, key, val)
+                for key in STATIC_FIELDS:
+                    if key in agent_data:
+                        setattr(existing, key, agent_data[key])
 
         db.commit()
-        print("Database seeded successfully with default user, workspace, and 9 specialized agents!")
+        print("Database seeded successfully with default user, workspace, and 10 specialized agents!")
     except Exception as e:
         db.rollback()
         print(f"Error seeding database: {e}")

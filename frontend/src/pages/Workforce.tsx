@@ -1,220 +1,194 @@
-import React, { useEffect, useState } from "react";
-import { Terminal } from "lucide-react";
+import React, { useEffect, useState, useCallback } from "react";
+import { RefreshCw, Users } from "lucide-react";
 import { api } from "../services/api";
+import { AgentGlyph } from "../components/ui/AgentGlyph";
+import { ErrorBanner, EmptyState, LoadingSkeleton } from "../components/ui/PageState";
 
-export const WorkforcePage: React.FC = () => {
+export const Workforce: React.FC = () => {
   const [agents, setAgents] = useState<any[]>([]);
-  const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  useEffect(() => {
-    const fetchAgents = () => {
-      api.getAgents()
-        .then((data) => {
-          setAgents(data || []);
-          if (!selectedAgent && data && data.length > 0) setSelectedAgent(data[0]);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
-    };
-
-    fetchAgents();
-    const interval = setInterval(fetchAgents, 10000);
-    return () => clearInterval(interval);
+  const loadAgents = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setLoading(true);
+    setErrorMsg("");
+    try {
+      const data = await api.getAgents();
+      const list = Array.isArray(data) ? data : [];
+      setAgents(list);
+      setSelectedAgentId((prev) => (prev && list.some((a) => a.id === prev) ? prev : list[0]?.id || null));
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Failed to load agent workforce.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    loadAgents(true);
+    const interval = setInterval(() => loadAgents(false), 10000);
+    return () => clearInterval(interval);
+  }, [loadAgents]);
+
+  const selectedAgent = agents.find((a) => a.id === selectedAgentId) || agents[0] || null;
+
+  if (loading) return <LoadingSkeleton rows={3} />;
+
   return (
-    <div style={{ maxWidth: "1400px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* Header */}
-      <div>
-        <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.4px" }}>
-          Autonomous Agent Workforce
-        </h1>
-        <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginTop: "2px" }}>
-          Fleet of 9 specialized AI engineers executing across the complete software development lifecycle.
-        </p>
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em" }}>Agent Workforce</h1>
+          <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
+            {agents.length || 10} specialized AI engineers with distinct identities, live telemetry, and guardrails.
+          </p>
+        </div>
+        <button type="button" className="btn-secondary btn-sm" onClick={() => loadAgents(true)}>
+          <RefreshCw size={13} /> Refresh
+        </button>
       </div>
 
-      {/* Main Grid: Agent Cards + Agent Details Inspector */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr", gap: "24px" }}>
-        {/* Agent Cards Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
-          {loading ? (
-            <div style={{ padding: "40px", color: "var(--text-secondary)" }}>Loading agents...</div>
-          ) : (
-            agents.map((agent) => {
+      {errorMsg && <ErrorBanner message={errorMsg} onRetry={() => loadAgents(true)} />}
+
+      {agents.length === 0 ? (
+        <EmptyState
+          icon={<Users size={22} />}
+          title="No AI agents registered"
+          description="Verify the backend database is connected and seeded."
+        />
+      ) : (
+        <div className="grid-main-aside">
+          <div className="grid-2col" style={{ gap: 14 }}>
+            {agents.map((agent) => {
               const isSelected = selectedAgent?.id === agent.id;
+              const isWorking = agent.status === "working" || agent.status === "running" || agent.status === "thinking";
               return (
-                <div
+                <button
                   key={agent.id}
-                  onClick={() => setSelectedAgent(agent)}
-                  className="card"
+                  type="button"
+                  onClick={() => setSelectedAgentId(agent.id)}
+                  className="card card-interactive"
                   style={{
-                    padding: "20px",
+                    textAlign: "left",
                     cursor: "pointer",
-                    border: isSelected ? "2px solid var(--primary-accent)" : "1px solid var(--border-color)",
-                    backgroundColor: isSelected ? "#FAFBFD" : "#FFFFFF",
+                    padding: 18,
+                    border: isSelected ? "1.5px solid var(--primary-accent)" : "1px solid var(--border-color)",
+                    background: isSelected ? "#161B24" : "var(--bg-card)",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <div
                         style={{
-                          width: "36px",
-                          height: "36px",
-                          borderRadius: "8px",
-                          backgroundColor: "var(--primary-light)",
+                          width: 42,
+                          height: 42,
+                          borderRadius: 12,
+                          border: "1px solid var(--border-color)",
+                          background: isWorking || isSelected ? "var(--primary-light)" : "#161922",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          color: "var(--primary-accent)",
-                          fontWeight: 700,
-                          fontSize: "14px",
+                          color: "#FFFFFF",
+                          flexShrink: 0,
                         }}
                       >
-                        {agent.name.charAt(0)}
+                        <AgentGlyph role={agent.role} size={22} active={isWorking || isSelected} />
                       </div>
                       <div>
-                        <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>{agent.name}</h3>
-                        <div style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "capitalize" }}>
-                          {agent.role.replace("_", " ")}
+                        <div style={{ fontSize: 15, fontWeight: 700, color: "#FFFFFF" }}>{agent.name}</div>
+                        <div style={{ fontSize: 12, color: "var(--text-secondary)", textTransform: "capitalize" }}>
+                          {(agent.display_name || agent.role || "").replace(/_/g, " ")}
                         </div>
                       </div>
                     </div>
-                    <span className="badge badge-neutral">{agent.status}</span>
+                    <span className={`badge ${isWorking ? "badge-primary" : agent.status === "failed" ? "badge-error" : "badge-neutral"}`}>
+                      {agent.status}
+                    </span>
                   </div>
 
-                  <p
-                    style={{
-                      fontSize: "12px",
-                      color: "var(--text-secondary)",
-                      lineHeight: "1.4",
-                      height: "34px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                      marginBottom: "16px",
-                    }}
-                  >
-                    {agent.description}
+                  <p style={{ fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 14 }}>
+                    {(agent.description || "").slice(0, 108)}
+                    {(agent.description || "").length > 108 ? "…" : ""}
                   </p>
 
-                  <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid var(--border-color)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-secondary)", marginBottom: "4px" }}>
-                      <span>Success Reliability</span>
-                      <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{agent.success_rate}%</span>
-                    </div>
-                    <div style={{ height: "4px", width: "100%", backgroundColor: "#E5E7EB", borderRadius: "2px", overflow: "hidden" }}>
-                      <div
-                        style={{
-                          height: "100%",
-                          width: `${agent.success_rate}%`,
-                          backgroundColor: "var(--success)",
-                        }}
-                      />
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-secondary)", marginTop: "8px" }}>
-                      <span>Completed: <strong>{agent.completed_tasks}</strong></span>
-                      <span>Avg: <strong>{(agent.avg_execution_time_ms / 1000).toFixed(1)}s</strong></span>
-                    </div>
+                  <div style={{ height: 4, borderRadius: 99, background: "rgba(255,255,255,0.07)", marginBottom: 10, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${Math.min(100, agent.success_rate || 0)}%`, background: "var(--primary-accent)", borderRadius: 99 }} />
+                  </div>
+
+                  <div className="tabular-nums" style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-muted)" }}>
+                    <span>Completed <strong style={{ color: "#FFFFFF" }}>{agent.completed_tasks}</strong></span>
+                    <span>Reliability <strong style={{ color: "var(--primary-accent)" }}>{agent.success_rate}%</strong></span>
+                    <span>Avg <strong style={{ color: "#FFFFFF" }}>{((agent.avg_execution_time_ms || 0) / 1000).toFixed(1)}s</strong></span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedAgent && (
+            <div className="ink-panel" style={{ position: "sticky", top: 80 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+                <div
+                  style={{
+                    width: 50,
+                    height: 50,
+                    borderRadius: 14,
+                    background: "var(--primary-light)",
+                    border: "1px solid rgba(16, 229, 147, 0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  <AgentGlyph role={selectedAgent.role} size={28} active />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: 19, fontWeight: 700 }}>{selectedAgent.name}</h2>
+                  <div style={{ fontSize: 13, color: "var(--text-secondary)", textTransform: "capitalize" }}>
+                    {(selectedAgent.display_name || selectedAgent.role || "").replace(/_/g, " ")}
                   </div>
                 </div>
-              );
-            })
-          )}
-        </div>
-
-        {/* Selected Agent Inspector Panel */}
-        {selectedAgent ? (
-          <div className="card" style={{ padding: "28px", height: "fit-content", position: "sticky", top: "84px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "16px" }}>
-              <div
-                style={{
-                  width: "48px",
-                  height: "48px",
-                  borderRadius: "10px",
-                  backgroundColor: "var(--primary-light)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--primary-accent)",
-                  fontWeight: 700,
-                  fontSize: "18px",
-                }}
-              >
-                {selectedAgent.name.charAt(0)}
               </div>
-              <div>
-                <h2 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-primary)" }}>{selectedAgent.name}</h2>
-                <div style={{ fontSize: "13px", color: "var(--text-secondary)", textTransform: "capitalize" }}>
-                  {selectedAgent.role.replace("_", " ")} Specialist
-                </div>
-              </div>
-            </div>
 
-            <div style={{ marginBottom: "20px" }}>
-              <h4 style={{ fontSize: "12px", fontWeight: 600, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "6px" }}>
-                Mission Scope
-              </h4>
-              <p style={{ fontSize: "13px", color: "var(--text-primary)", lineHeight: "1.5" }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>Mission Scope</div>
+              <p style={{ fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 18 }}>
                 {selectedAgent.description}
               </p>
-            </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "12px",
-                padding: "16px",
-                backgroundColor: "#F9FAFB",
-                borderRadius: "8px",
-                border: "1px solid var(--border-color)",
-                marginBottom: "20px",
-              }}
-            >
-              <div>
-                <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Completed Tasks</div>
-                <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-primary)" }}>
-                  {selectedAgent.completed_tasks}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: 14, borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-color)", marginBottom: 18 }}>
+                <div>
+                  <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>Completed Tasks</div>
+                  <div className="tabular-nums" style={{ fontSize: 22, fontWeight: 800, marginTop: 2 }}>{selectedAgent.completed_tasks}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>Reliability</div>
+                  <div className="tabular-nums" style={{ fontSize: 22, fontWeight: 800, color: "var(--primary-accent)", marginTop: 2 }}>{selectedAgent.success_rate}%</div>
                 </div>
               </div>
-              <div>
-                <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Reliability Score</div>
-                <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--success)" }}>
-                  {selectedAgent.success_rate}%
-                </div>
-              </div>
-            </div>
 
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
-                <Terminal size={14} color="var(--primary-accent)" />
-                <h4 style={{ fontSize: "12px", fontWeight: 600, textTransform: "uppercase", color: "var(--text-secondary)" }}>
-                  System Prompt & Guardrails
-                </h4>
-              </div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>System Prompt &amp; Guardrails</div>
               <div
                 style={{
-                  padding: "14px",
-                  borderRadius: "8px",
-                  backgroundColor: "#1E293B",
-                  color: "#E2E8F0",
+                  background: "#08090C",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: 10,
+                  padding: 14,
                   fontFamily: "var(--font-mono)",
-                  fontSize: "12px",
-                  lineHeight: "1.5",
-                  maxHeight: "260px",
+                  fontSize: 12,
+                  lineHeight: 1.65,
+                  color: "#D1D5DB",
+                  maxHeight: 240,
                   overflowY: "auto",
                 }}
               >
-                {selectedAgent.system_prompt}
+                {selectedAgent.system_prompt || "Standard autonomous engineering guardrails active."}
               </div>
             </div>
-          </div>
-        ) : null}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
