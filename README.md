@@ -1,155 +1,190 @@
-# SYNAPSE — Autonomous AI Software Engineering Platform
+<div align="center">
 
-> A virtual software engineering company where 9 specialized AI agents collaborate across requirements, architecture, frontend, backend, code review, QA, security, and documentation to build enterprise-grade software.
+<img src="frontend/src/assets/synapse-logo.jpg" alt="SYNAPSE Logo" width="110" style="border-radius: 24px;" />
+
+# SYNAPSE
+
+### *Where 10 Autonomous AI Engineers Think, Build, Audit & Ship Together.*
+
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Tests](https://img.shields.io/badge/Pytest-22%20Passing-FF4D8D?style=for-the-badge&logo=pytest&logoColor=white)](backend/tests/)
+[![License](https://img.shields.io/badge/Ready%20For-Beta%20%26%20Scale-7C5CFF?style=for-the-badge)](#)
+
+[**Full Technical Docs**](DOCUMENTATION.md) · [**Quick Start (60s)**](#-quick-start-in-60-seconds) · [**Meet the 10 Agents**](#-meet-your-10-ai-engineers) · [**Live UI Tour**](#-visual-tour) · [**API Cheat Sheet**](#-api-cheat-sheet)
+
+</div>
 
 ---
 
-## 🏛️ System Architecture
+## ✨ What is SYNAPSE?
 
-```text
-                                  +-----------------------+
-                                  |     User / Client     |
-                                  +-----------+-----------+
-                                              |
-                                              v
-                              +-------------------------------+
-                              |    Vite + React 19 Frontend   |
-                              |   Enterprise SaaS Dashboard   |
-                              +---------------+---------------+
-                                              |  HTTP / WebSocket
-                                              v
-                              +-------------------------------+
-                              |      FastAPI Backend Engine   |
-                              +---------------+---------------+
-                                              |
-              +-------------------------------+-------------------------------+
-              |                               |                               |
-              v                               v                               v
-    +-------------------+           +-------------------+           +-------------------+
-    |    PostgreSQL 16  |           |     Groq LLM      |           | WebSocket Engine  |
-    |  (18 Data Models) |           | (Llama 3.3 / 3.1) |           |  (Real-Time Sync) |
-    +-------------------+           +-------------------+           +-------------------+
+Give **SYNAPSE** a product idea and watch a **10-specialist autonomous AI engineering team** turn it into an architected, tested, SAST-audited, Docker-packaged codebase—complete with **human-in-the-loop approval gates**, **live WebSocket telemetry**, **direct GitHub push**, and **100% downloadable code ownership**.
+
+> 💡 **No black-box magic.** Every PRD, ADR, source file, pytest assertion, security finding, and human sign-off is versioned, inspectable, and yours to keep.
+
+<div align="center">
+  <img src="screenshots/01-landing-playground.png" alt="SYNAPSE Landing Page & Interactive 10-Agent Playground" width="100%" />
+  <sub><em>Interactive 10-Agent Playground with living neural constellation canvas — click anywhere to fire synaptic ripples!</em></sub>
+</div>
+
+---
+
+## 🧠 How the 10-Agent Pipeline Works
+
+```mermaid
+flowchart LR
+    A["01 Supervisor\nTask Graph"] --> B["02 Product Mgr\nPRD & Stories"]
+    B --> C["03 Architect\nAPIs & Schema"]
+    C --> G{{"Human Approval\nGate"}}
+    G -->|Approved| D["04 Backend Dev\nFastAPI + AST"]
+    G -->|Approved| E["05 Frontend Dev\nReact 19 + TS"]
+    D --> F["06 Code Reviewer\nPeer Audit"]
+    E --> F
+    F --> H["07 QA Engineer\nSandbox Pytest"]
+    H --> I["08 Security Agent\nSAST & OWASP"]
+    I --> J["09 Docs Agent\nDelivery Dossier"]
+    J --> K["10 DevOps Agent\nDocker & GitHub"]
 ```
 
 ---
 
-## 👥 The 9 Specialized AI Agents
+## 👥 Meet Your 10 AI Engineers
 
-| # | Agent | Role | Identity | Key Responsibility |
-|---|---|---|---|---|
-| 1 | **Supervisor** | `supervisor` | Alex Vance | Orchestrator, task decomposition, dependency graph, delivery gatekeeper |
-| 2 | **Product Manager** | `product_manager` | Sarah Chen | Product Requirements Document (PRD), user stories, acceptance criteria |
-| 3 | **System Architect** | `system_architect` | Marcus Aurelius | Tech stack selection, API specifications, relational schemas |
-| 4 | **Backend Developer** | `backend_developer` | David Thorne | FastAPI endpoints, Pydantic schemas, database queries |
-| 5 | **Frontend Developer** | `frontend_developer` | Elena Rostova | React 19, TypeScript components, state management, API integration |
-| 6 | **Code Reviewer** | `code_reviewer` | Claire Dupont | Static code analysis, anti-pattern detection, architectural consistency |
-| 7 | **QA Engineer** | `qa_engineer` | Tariq Mansour | Automated pytest suites, test execution, regression diagnostics |
-| 8 | **Security Agent** | `security_agent` | Aiden Cross | SAST analysis, OWASP Top 10 compliance, secrets audit |
-| 9 | **Documentation Agent** | `documentation_agent` | Maya Patel | README creation, runbooks, OpenAPI docs, changelogs |
+<details open>
+<summary><strong>Click to expand / collapse the full 10-specialist roster</strong></summary>
+
+| # | Identity | Role | Superpower |
+|---|---|---|---|
+| **01** | **Alex Vance** | `Supervisor` | Decomposes ideas into dependency graphs & orchestrates delivery |
+| **02** | **Sarah Chen** | `Product Manager` | Writes structured PRDs, user stories & measurable MVP scope |
+| **03** | **Marcus Aurelius** | `System Architect` | Designs system topology, REST contracts, DB tables & ADRs |
+| **04** | **David Thorne** | `Backend Developer` | Synthesizes FastAPI endpoints & Pydantic schemas with AST validation |
+| **05** | **Elena Rostova** | `Frontend Developer` | Crafts modular React 19 + TypeScript UIs & live API hooks |
+| **06** | **Claire Dupont** | `Code Reviewer` | Audits architectural boundaries, anti-patterns & type safety |
+| **07** | **Tariq Mansour** | `QA Engineer` | Runs Python AST checks & automated pytest suites in isolated sandboxes |
+| **08** | **Aiden Cross** | `Security Agent` | Executes deterministic OWASP/CWE SAST scans across all generated code |
+| **09** | **Maya Patel** | `Documentation Agent` | Generates READMEs, runbooks & 18-section Engineering Delivery Reports |
+| **10** | **Devon Brooks** | `Deployment Agent` | Packages non-root Dockerfiles, Compose manifests & healthchecks |
+
+</details>
 
 ---
 
-## 🚀 Quick Start Guide
+## 🖼️ Visual Tour
 
-### 1. Database Setup (PostgreSQL)
+<table>
+  <tr>
+    <td width="50%">
+      <img src="screenshots/02-command-center.png" alt="SYNAPSE Command Center" />
+      <p align="center"><strong>Command Center HQ</strong> — Live KPIs, active pipelines & onboarding</p>
+    </td>
+    <td width="50%">
+      <img src="screenshots/03-agent-workforce.png" alt="Agent Workforce" />
+      <p align="center"><strong>Agent Workforce</strong> — 10 geometric identities & system guardrails</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="screenshots/04-workflow-studio.png" alt="Workflow Studio" />
+      <p align="center"><strong>Workflow Studio</strong> — Interactive pan/zoom multi-agent graph</p>
+    </td>
+    <td width="50%">
+      <img src="screenshots/05-git-github-push.png" alt="Git & GitHub Push" />
+      <p align="center"><strong>Git & Releases</strong> — Agent commits, PR merges & Push to GitHub</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="screenshots/06-pricing-billing.png" alt="Pricing & Stripe Billing" />
+      <p align="center"><strong>Pricing & Stripe Billing</strong> — Starter, Pro & Enterprise tiers</p>
+    </td>
+    <td width="50%">
+      <img src="screenshots/07-analytics-roi.png" alt="Analytics & ROI Simulator" />
+      <p align="center"><strong>Analytics & ROI</strong> — Real token telemetry & ROI simulator</p>
+    </td>
+  </tr>
+</table>
 
-You can run PostgreSQL via Docker:
+---
 
-```powershell
-# Run the pre-configured PostgreSQL container
-docker run -d --name synapse-db -p 5433:5432 -e POSTGRES_DB=synapse_db -e POSTGRES_USER=synapse -e POSTGRES_PASSWORD=synapse_dev_2026 postgres:16-alpine
-```
+## 🚀 Quick Start in 60 Seconds
 
-Or using Docker Compose:
-```powershell
-docker compose up -d db
-```
-
-### 2. Backend Setup (FastAPI)
+### 1️⃣ Start the Backend (FastAPI + Auto-Seeding SQLite/PostgreSQL)
 
 ```powershell
 cd backend
-
-# Create virtual environment if not created
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-
-# Install dependencies
 pip install -r requirements.txt
 
-# Start backend server (Auto-migrates & seeds the 9 agents on startup!)
+# Launch API (auto-migrates & seeds all 10 agents + demo workspace!)
 .\.venv\Scripts\uvicorn.exe app.main:app --reload --port 8000
 ```
 
-The backend will be live at:
-- **API**: [http://localhost:8000](http://localhost:8000)
-- **Interactive OpenAPI Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+> 🎯 **Zero DB Friction:** PostgreSQL 16 (`docker compose up -d db`) is supported out of the box, and if Postgres isn't running locally, SYNAPSE automatically falls back to local SQLite!
 
-### 3. Frontend Setup (React + Vite)
+### 2️⃣ Start the Frontend (React 19 + Vite 8)
 
 ```powershell
 cd frontend
-
-# Install packages
 npm install
-
-# Start Vite dev server
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+Open **[http://127.0.0.1:5173](http://127.0.0.1:5173)** and click **Launch Live Demo Workspace**!
 
 ---
 
-## 🛠️ API Endpoints Summary
+## 🕹️ Interactive Feature Deep-Dive
 
-| Group | Method | Path | Description |
-|---|---|---|---|
-| **Health** | `GET` | `/health` | Live system and database health check |
-| **Projects** | `GET` | `/api/v1/projects` | List projects with search & filtering |
-| | `POST` | `/api/v1/projects` | Create a new project & generate workflow graph |
-| | `GET` | `/api/v1/projects/{id}` | Get project summary |
-| | `GET` | `/api/v1/projects/{id}/details` | Full details (workflow, artifacts, tests, security) |
-| | `DELETE` | `/api/v1/projects/{id}` | Delete project |
-| **Workflows** | `GET` | `/api/v1/workflows/project/{project_id}` | Get full workflow graph with nodes and edges |
-| | `POST` | `/api/v1/workflows/{id}/start` | Trigger autonomous multi-agent execution |
-| | `POST` | `/api/v1/workflows/{id}/pause` | Pause active execution |
-| | `POST` | `/api/v1/workflows/{id}/resume` | Resume execution |
-| | `POST` | `/api/v1/workflows/{id}/cancel` | Cancel active execution |
-| **Approvals** | `GET` | `/api/v1/approvals` | List approval requests |
-| | `POST` | `/api/v1/approvals/{id}/resolve` | Approve or reject a human gate request |
-| **Artifacts** | `GET` | `/api/v1/artifacts/project/{id}` | List project generated code & docs |
-| | `GET` | `/api/v1/artifacts/project/{id}/tree` | Get nested file tree |
-| | `GET` | `/api/v1/artifacts/project/{id}/download` | Download full codebase as `.zip` archive |
-| **Testing** | `GET` | `/api/v1/testing/project/{id}` | Get QA test runs |
-| | `POST` | `/api/v1/testing/project/{id}/execute` | Run automated test suite |
-| **Security** | `GET` | `/api/v1/security/project/{id}` | Get security scans & findings |
-| | `POST` | `/api/v1/security/project/{id}/execute` | Run SAST vulnerability audit |
-| **Analytics** | `GET` | `/api/v1/analytics/overview` | Platform-wide KPIs & cost estimates |
-| | `GET` | `/api/v1/analytics/agents` | Per-agent workload & success metrics |
-| | `GET` | `/api/v1/analytics/usage` | LLM token consumption breakdown |
-| **WebSocket** | `WS` | `/api/v1/ws/projects/{project_id}` | Real-time project execution stream |
-| | `WS` | `/api/v1/ws/global` | Global platform notifications stream |
+<details>
+<summary><strong>🔐 Security, Multi-Tenancy & Auth (Phase 3)</strong></summary>
 
----
+- **PBKDF2-HMAC-SHA256** password hashing + **HS256 JWT** sessions (`/api/v1/auth/register`, `/login`, `/demo-login`, `/forgot-password`, `/reset-password`)
+- **Workspace Multi-Tenant Isolation** with optional strict `REQUIRE_AUTH=true` production mode
+- **Docker Container Sandbox Mode** (`SANDBOX_MODE=docker` with `--network=none --read-only --memory=256m`)
+- **Pure-ASGI Sliding-Window Rate Limiter** + security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`)
+- **Path Traversal & Zip Slip Protection** across `GitService`, `CodeSandbox`, and ZIP downloads
 
-## 🎨 Enterprise Design System
+</details>
 
-- **Background**: `#F7F8FA`
-- **Primary Accent**: `#315EFB`
-- **Text Primary**: `#17191C`
-- **Text Secondary**: `#747B86`
-- **Borders**: `#E8EAED`
-- **Success**: `#10B981`
-- **Warning**: `#F59E0B`
-- **Error**: `#EF4444`
+<details>
+<summary><strong>💳 Commercial Billing & GitHub Push (Phase 4)</strong></summary>
+
+- **Stripe Checkout & HMAC-SHA256 Webhook Verification** (`/api/v1/billing/status`, `/checkout`, `/webhook`)
+- **Plan Quotas:** Starter (3 projects free) vs Pro (unlimited) enforced on project creation
+- **One-Click Push to GitHub:** Export generated project artifacts straight to any `owner/repo` branch via GitHub REST API
+- **Built-In Legal & Trust Pages:** `/terms`, `/privacy`, and `/support`
+
+</details>
+
+<details>
+<summary><strong>📡 API Cheat Sheet (Interactive Swagger at <code>/docs</code>)</strong></summary>
+
+| Group | Endpoints |
+|---|---|
+| **Auth** | `POST /api/v1/auth/{register,login,demo-login,forgot-password,reset-password}`, `GET /api/v1/auth/me` |
+| **Billing** | `GET /api/v1/billing/status`, `POST /api/v1/billing/{checkout,webhook}` |
+| **Projects & Workflows** | `CRUD /api/v1/projects`, `POST /api/v1/workflows/{id}/{start,pause,resume,cancel}` |
+| **Code, QA & Security** | `GET /api/v1/artifacts/project/{id}/download`, `POST /api/v1/testing/project/{id}/execute`, `POST /api/v1/security/project/{id}/execute` |
+| **Git & Reports** | `POST /api/v1/git/project/{id}/push-github`, `GET /api/v1/reports/project/{id}[/markdown]` |
+| **Settings & Live WS** | `GET/PUT /api/v1/settings`, `WS /ws/projects/{project_id}`, `WS /ws/global` |
+
+</details>
 
 ---
 
-## 🧪 Testing
+## 🧪 Testing & Verification
 
 ```powershell
-cd backend
-.\.venv\Scripts\python.exe tests/test_api.py
+# Run all 22 backend unit, integration & security tests
+cd backend && .\.venv\Scripts\pytest.exe tests/ -v
+
+# Type-check, build & lint the React 19 frontend
+cd frontend && npm run build && npm run lint
 ```
+
+For full architecture diagrams, database schemas, security checklists, and cloud deployment guides, read **[DOCUMENTATION.md](DOCUMENTATION.md)** or download the executive report **[docs/Synapse_Phase_1_2_Implementation_Report.pdf](docs/Synapse_Phase_1_2_Implementation_Report.pdf)**.

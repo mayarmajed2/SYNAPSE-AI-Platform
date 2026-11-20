@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { GitPullRequest, GitCommit, GitBranch, PlusCircle, CheckCircle2 } from "lucide-react";
+import { GitPullRequest, GitCommit, GitBranch, PlusCircle, CheckCircle2, UploadCloud, X } from "lucide-react";
 import { api } from "../services/api";
 import { useToast } from "../context/ToastContext";
 import { ErrorBanner, EmptyState, LoadingSkeleton } from "../components/ui/PageState";
@@ -17,6 +17,30 @@ export const GitReleases: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"commits" | "prs" | "branches">("commits");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const [ghOpen, setGhOpen] = useState(false);
+  const [ghRepo, setGhRepo] = useState("");
+  const [ghBranch, setGhBranch] = useState("main");
+  const [ghToken, setGhToken] = useState("");
+  const [ghPushing, setGhPushing] = useState(false);
+
+  const handleGitHubPush = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProjectId || !ghRepo.trim()) return;
+    setGhPushing(true);
+    try {
+      const res = await api.pushToGitHub(selectedProjectId, {
+        repository: ghRepo.trim(),
+        branch: ghBranch.trim() || "main",
+        github_token: ghToken.trim() || undefined,
+      });
+      success("Pushed to GitHub!", `${res.pushed_files} file(s) synced to ${res.repository}.`);
+      setGhOpen(false);
+    } catch (err: any) {
+      error("GitHub push failed", err?.message || "Verify repository name and Personal Access Token.");
+    } finally {
+      setGhPushing(false);
+    }
+  };
 
   const loadGit = useCallback(async (projId: string) => {
     if (!projId) return;
@@ -95,20 +119,25 @@ export const GitReleases: React.FC = () => {
             Agent-authored commit logs, pull request lifecycle, and branch status.
           </p>
         </div>
-        <select
-          className="input-field"
-          style={{ width: 220 }}
-          value={selectedProjectId}
-          onChange={(e) => {
-            setSelectedProjectId(e.target.value);
-            setSearchParams({ project: e.target.value });
-            loadGit(e.target.value);
-          }}
-        >
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <select
+            className="input-field"
+            style={{ width: 220 }}
+            value={selectedProjectId}
+            onChange={(e) => {
+              setSelectedProjectId(e.target.value);
+              setSearchParams({ project: e.target.value });
+              loadGit(e.target.value);
+            }}
+          >
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <button type="button" className="btn-accent btn-sm" onClick={() => setGhOpen(true)}>
+            <UploadCloud size={14} /> Push to GitHub
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -180,6 +209,38 @@ export const GitReleases: React.FC = () => {
               {b === (repo?.current_branch || "main") && <span className="badge badge-primary">Default</span>}
             </div>
           ))}
+        </div>
+      )}
+
+      {ghOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(5,5,10,0.7)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={() => setGhOpen(false)}
+        >
+          <form className="card fade-in" style={{ maxWidth: 460, width: "100%", display: "flex", flexDirection: "column", gap: 14 }} onClick={(e) => e.stopPropagation()} onSubmit={handleGitHubPush}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ fontSize: 17, fontWeight: 700 }}>Push Codebase to GitHub</h2>
+              <button type="button" onClick={() => setGhOpen(false)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}><X size={16} /></button>
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, marginBottom: 5 }}>Repository (owner/repo)</label>
+              <input type="text" required className="input-field" placeholder="username/my-synapse-app" value={ghRepo} onChange={(e) => setGhRepo(e.target.value)} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, marginBottom: 5 }}>Target Branch</label>
+              <input type="text" className="input-field" value={ghBranch} onChange={(e) => setGhBranch(e.target.value)} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, marginBottom: 5 }}>GitHub Personal Access Token (repo scope)</label>
+              <input type="password" className="input-field" placeholder="ghp_... (optional if GITHUB_TOKEN is set)" value={ghToken} onChange={(e) => setGhToken(e.target.value)} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 6 }}>
+              <button type="button" className="btn-secondary" onClick={() => setGhOpen(false)}>Cancel</button>
+              <button type="submit" className="btn-accent" disabled={ghPushing}>
+                <UploadCloud size={14} /> {ghPushing ? "Pushing..." : "Push Artifacts"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

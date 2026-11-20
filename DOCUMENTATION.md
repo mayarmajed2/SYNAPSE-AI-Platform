@@ -1,39 +1,13 @@
-# SYNAPSE — Autonomous AI Software Engineering Platform Documentation
+# SYNAPSE — Complete Technical & Product Documentation
 
-> **Version:** 1.0.0  
-> **Live Demo (GitHub Pages):** [https://mayarmajed2.github.io/SYNAPSE-AI-Platform/](https://mayarmajed2.github.io/SYNAPSE-AI-Platform/)  
-> **Repository:** [mayarmajed2/SYNAPSE-AI-Platform](https://github.com/mayarmajed2/SYNAPSE-AI-Platform)  
-> **Stack:** FastAPI · SQLAlchemy 2.0 · PostgreSQL 16 (with automatic SQLite fallback) · Groq LLM (Llama 3.3 / 3.1) · WebSockets · React 19 · TypeScript · Vite 8
+> **Version:** 2.0.0  
+> **Stack:** FastAPI · SQLAlchemy 2.0 · PostgreSQL 16 / SQLite · React 19 · TypeScript · Vite 8 · WebSockets · Groq LLM · Stripe · GitHub REST API
 
 ---
 
-## Table of Contents
+## 1. Platform Overview
 
-1. [Executive Overview](#1-executive-overview)
-2. [System Architecture](#2-system-architecture)
-3. [The Autonomous AI Workforce (10 Specialized Agents)](#3-the-autonomous-ai-workforce-10-specialized-agents)
-4. [Platform Walkthrough & Live Screenshots](#4-platform-walkthrough--live-screenshots)
-5. [Frontend Pages & Capabilities](#5-frontend-pages--capabilities)
-6. [Backend Architecture & Database Schema (18 Models)](#6-backend-architecture--database-schema-18-models)
-7. [REST API & WebSocket Reference](#7-rest-api--websocket-reference)
-8. [Installation, Configuration & Running Locally](#8-installation-configuration--running-locally)
-9. [Docker Deployment](#9-docker-deployment)
-10. [Testing & Verification](#10-testing--verification)
-
----
-
-## 1. Executive Overview
-
-**SYNAPSE** is an autonomous AI software engineering platform modeled as a virtual software engineering company. Instead of relying on a single monolithic prompt, SYNAPSE decomposes software delivery across a coordinated fleet of specialized AI agents—covering requirements engineering, system architecture, backend and frontend implementation, code review, automated QA testing, SAST/OWASP security auditing, technical documentation, and deployment readiness.
-
-Users submit a product idea through an enterprise SaaS dashboard, configure complexity and optional human approval gates, and observe the full multi-agent pipeline execute in real time over WebSockets—producing inspectable source code artifacts, test reports, security scan findings, architecture intelligence, and downloadable project archives.
-
-### Key Highlights
-- **End-to-End Autonomous SDLC**: Transforms a plain-English product vision into structured PRDs, architecture blueprints, backend/frontend code, test suites, security audits, and delivery documentation.
-- **Interactive Workflow Studio**: Visual directed graph of multi-agent execution nodes, dependencies, statuses, execution durations, and artifact drill-downs.
-- **Human-in-the-Loop Governance**: Built-in Approvals Center, Audit Logs, Security Center, and Engineering Delivery Reports.
-- **Real-Time Observability**: Live WebSocket sync (`Live Sync`), LLM token consumption tracking, estimated cost analytics, latency metrics, and ROI simulation.
-- **Zero-Friction Persistence**: Designed for PostgreSQL 16 (with `JSONB`) and automatically falls back to local SQLite (`backend/synapse.db`) when PostgreSQL is offline.
+**SYNAPSE** is an autonomous multi-agent AI software engineering platform that operates like a governed virtual software engineering company. Users submit a product specification, and 10 specialized AI engineering agents collaborate across requirements, system architecture, backend & frontend engineering, static code review, sandbox QA testing, SAST security auditing, technical documentation, and Docker deployment—with human-in-the-loop approval gates, full codebase ownership, and real-time WebSocket observability.
 
 ---
 
@@ -41,296 +15,200 @@ Users submit a product idea through an enterprise SaaS dashboard, configure comp
 
 ```mermaid
 flowchart TB
-    User["User / Principal Engineer"]
-    FE["Frontend: React 19 + TypeScript + Vite 8\n(Enterprise SaaS Dashboard — :5173)"]
-    API["Backend: FastAPI + Uvicorn\n(REST API + WebSocket Engine — :8000 / :8001)"]
-    ORCH["Multi-Agent Orchestration Engine\n(DAG Workflow + 10 Specialized Agents)"]
-    DB["PostgreSQL 16 / SQLite Fallback\n(18 SQLAlchemy ORM Models)"]
-    LLM["Groq LLM Provider\n(Llama 3.3 70B / Llama 3.1 8B)"]
-    WS["WebSocket Hub\n(/ws/global & /ws/projects/{id})"]
+    User["User / Engineering Team"] -->|HTTPS / WSS| FE["React 19 + TypeScript + Vite 8\n(Floating-Pill Shell + Ambient Neural Canvas)"]
+    FE -->|REST / JWT Bearer| API["FastAPI Backend Engine (v2.0)\nSecurity Headers · Sliding-Window Rate Limiter"]
+    FE -->|WebSocket Live Sync| WS["ConnectionManager (/ws/projects/{id}, /ws/global)"]
 
-    User --> FE
-    FE <-->|"HTTP / REST (/api/v1)"| API
-    FE <-->|"Real-Time Events (WS)"| WS
-    API --> ORCH
-    API --> DB
-    ORCH --> DB
-    ORCH --> LLM
-    ORCH --> WS
+    API --> AUTH["Auth & Multi-Tenant RBAC\nPBKDF2-SHA256 · HS256 JWT · Password Reset"]
+    API --> BILL["Billing & Quotas\nStripe Checkout · HMAC-SHA256 Webhooks"]
+    API --> WF["10-Stage Autonomous Workflow Runner\nRetry Loops · Pause/Cancel · Approval Gates"]
+
+    WF --> LLM["Groq LLM Client\n(Llama 3.3 70B / 3.1 8B + AST Validation)"]
+    WF --> SB["CodeSandbox\n(Docker Isolated --network=none / Local Fallback)"]
+    WF --> SAST["Deterministic SAST Scanner\n(OWASP / CWE-78, 79, 89, 95, 295, 798, 942)"]
+    WF --> GIT["GitService + GitHub Push API"]
+
+    API --> DB[("PostgreSQL 16\n(18 ORM Models + SQLite Local Fallback)")]
 ```
 
-### Repository Structure
-
+### Repository Layout
 ```text
 SYNAPSE-CLONE/
 ├── backend/
-│   ├── alembic/                # Database migration scripts (001_initial_schema.py)
 │   ├── app/
-│   │   ├── agents/             # 10 specialized agent implementations
-│   │   ├── api/v1/             # 14 FastAPI routers (REST + WebSockets)
-│   │   ├── core/               # Configuration & shared utilities
-│   │   ├── db/                 # SQLAlchemy models (18 tables), enums, seed script
-│   │   ├── schemas/            # Pydantic v2 request/response schemas
-│   │   ├── services/           # Business logic, LLM client, artifact & scan services
-│   │   ├── workflows/          # DAG workflow engine & execution orchestrator
-│   │   ├── database.py         # PostgreSQL engine with graceful SQLite fallback
-│   │   └── main.py             # FastAPI app, CORS, lifespan auto-init & seeding
-│   ├── tests/                  # Automated API test suite
-│   ├── .env.example            # Environment variable template
-│   ├── Dockerfile              # Container build specification
-│   └── requirements.txt        # Python dependencies
+│   │   ├── agents/          # 10 specialist AI agents (Supervisor -> Deployment)
+│   │   ├── api/v1/          # 16 REST & WebSocket routers (auth, billing, projects, workflows, ...)
+│   │   ├── core/            # config.py, llm.py, security.py, rate_limit.py
+│   │   ├── db/              # models.py (18 tables), enums.py, seed.py, database.py
+│   │   ├── schemas/         # Pydantic v2 request/response models
+│   │   ├── services/        # sandbox.py, sast_scanner.py, git_service.py, report_service.py, architecture_service.py, audit.py
+│   │   ├── workflows/       # runner.py, nodes.py, state.py
+│   │   └── main.py          # FastAPI entrypoint, safe column migrator, /health
+│   ├── alembic/             # Database migrations
+│   ├── tests/               # test_api.py (16 unit) + test_integration.py (6 integration/security)
+│   ├── Dockerfile           # Multi-stage, non-root `synapse` user, git + curl HEALTHCHECK
+│   └── .env.example         # Complete environment configuration template
 ├── frontend/
-│   ├── src/
-│   │   ├── components/         # Layout shell, sidebar, header, reusable UI components
-│   │   ├── hooks/              # Real-time WebSocket hook (useWebSocket.ts)
-│   │   ├── pages/              # 17 enterprise dashboard views
-│   │   ├── services/           # Typed REST API client (api.ts)
-│   │   └── App.tsx             # React Router v7 route definitions
-│   ├── package.json            # React 19, Lucide icons, Vite 8, TypeScript
-│   └── vite.config.ts          # Dev server & API proxy configuration
-├── screenshots/                # Live application verification screenshots
-├── docker-compose.yml          # PostgreSQL 16 + FastAPI backend stack
-├── start-all.bat               # Windows convenience launcher
-├── DOCUMENTATION.md            # This technical documentation
-└── LINKEDIN_POST.md            # Launch announcement post copy
+│   ├── public/              # synapse-logo.jpg favicon
+│   └── src/
+│       ├── assets/          # Bespoke 5-node neural star Synapse logo
+│       ├── components/
+│       │   ├── layout/      # AppLayout.tsx, TopNav.tsx (Floating Pill + Sub-Rail)
+│       │   └── ui/          # AmbientCanvas, SynapseLogo, AgentGlyph, ConfirmModal, ErrorBoundary, PageState
+│       ├── context/         # AuthContext.tsx, ToastContext.tsx
+│       ├── hooks/           # useWebSocket.ts
+│       ├── pages/           # 21 pages (Landing, Pricing, Auth, Legal, Overview, WorkflowStudio, ...)
+│       └── services/        # api.ts (JWT-aware HTTP client), demoData.ts
+├── docs/                    # Synapse_Phase_1_2_Implementation_Report.pdf
+├── screenshots/             # 1440x900 live UI screenshots
+└── docker-compose.yml       # PostgreSQL 16 + FastAPI backend stack
 ```
 
 ---
 
-## 3. The Autonomous AI Workforce (10 Specialized Agents)
+## 3. The 10 Specialized AI Agents
 
-On startup, `backend/app/db/seed.py` automatically seeds the default user (`architect@synapse.ai`), workspace (`SYNAPSE HQ`), and **10 specialized AI agents** (the 9 core SDLC pipeline agents plus the DevOps Deployment Agent):
-
-| # | Agent Name | Role Key | Title | Primary Responsibilities |
-|---|---|---|---|---|
-| 1 | **Alex Vance** | `supervisor` | Chief AI Orchestrator | Decomposes project vision into DAG task graphs, coordinates dependencies, manages retries, and enforces quality gates |
-| 2 | **Sarah Chen** | `product_manager` | Product Lead | Produces Product Requirements Documents (PRD), user personas, user stories, and Given/When/Then acceptance criteria |
-| 3 | **Marcus Aurelius** | `system_architect` | Principal Technical Architect | Designs full-stack topologies, relational schemas, REST API contracts, and technology stack blueprints |
-| 4 | **David Thorne** | `backend_developer` | Principal Backend Engineer | Generates FastAPI routers, Pydantic schemas, SQLAlchemy ORM models, authentication, and business logic |
-| 5 | **Elena Rostova** | `frontend_developer` | Senior Frontend Engineer | Crafts modular React & TypeScript components, responsive SaaS layouts, client state, and API integrations |
-| 6 | **Claire Dupont** | `code_reviewer` | Senior Staff Code Reviewer | Conducts peer reviews across generated code, flags anti-patterns, and verifies architectural consistency |
-| 7 | **Tariq Mansour** | `qa_engineer` | Lead QA Engineer | Designs and executes automated test suites (unit, integration, regression) and diagnoses failures |
-| 8 | **Aiden Cross** | `security_agent` | Cybersecurity Specialist | Runs SAST audits for OWASP Top 10 vulnerabilities, hardcoded secrets, injection risks, and CWE mapping |
-| 9 | **Maya Patel** | `documentation_agent` | Technical Documentation Specialist | Authors READMEs, OpenAPI guides, architecture runbooks, setup instructions, and changelogs |
-| 10 | **Devon Brooks** | `deployment_agent` | Lead DevOps & Cloud Specialist | Generates Dockerfiles, Docker Compose topologies, Kubernetes manifests, and staging deployment readiness checks |
-
----
-
-## 4. Platform Walkthrough & Live Screenshots
-
-All screenshots below were captured at `1440×900` against a live local deployment of SYNAPSE executing a real end-to-end project (**TaskFlow AI**).
-
-### Overview Dashboard (`/`)
-Displays live platform health (`Live Sync`), the 9-stage autonomous software lifecycle, KPI cards (total projects, agent tasks, average execution time, AI tokens & cost), recent pipelines, and active workforce fleet.
-
-![Overview Dashboard](./screenshots/01-overview-dashboard.png)
-
-### Autonomous Agent Workforce (`/workforce`)
-Lists all 10 registered AI specialists with their role badges, operational status, task completion metrics, success rates, and system prompts.
-
-![Autonomous Agent Workforce](./screenshots/02-agent-workforce.png)
-
-### Launch Autonomous Project (`/projects/new`)
-Guided project intake form supporting custom product visions, quick-start templates, project archetypes, system complexity levels, and optional human-in-the-loop approval gates.
-
-![New Project Creation](./screenshots/03-new-project.png)
-
-### Software Projects Directory (`/projects`)
-Searchable, filterable portfolio of all autonomous engineering projects with completion progress, stack badges, and quick navigation.
-
-![Software Projects List](./screenshots/04-projects-list.png)
-
-### Interactive Workflow Studio (`/workflow-studio`)
-Visual multi-agent DAG execution canvas displaying real-time node progression, per-stage execution durations, inspector details, and direct links to generated code and QA assertions.
-
-![Workflow Studio](./screenshots/05-workflow-studio.png)
-
-### Project Details & Generated Artifacts (`/projects/:id`)
-Consolidated project view highlighting autonomous execution progress, lifecycle stage (`Delivered`), generated code artifacts, and artifact download capabilities.
-
-![Project Details](./screenshots/06-project-details.png)
-
-### AI Observability & Business Analytics (`/analytics`)
-Tracks token consumption (prompt vs. completion split), estimated LLM cost, execution latency, success rate, autonomous quality gates, and an interactive ROI simulator.
-
-![Analytics & Observability](./screenshots/07-analytics-observability.png)
-
-### Interactive OpenAPI / Swagger Documentation (`/docs`)
-Auto-generated OpenAPI 3.1 specification exposing every SYNAPSE REST endpoint for testing and external integration.
-
-![FastAPI Swagger UI](./screenshots/08-api-swagger-docs.png)
-
----
-
-## 5. Frontend Pages & Capabilities
-
-The React 19 SPA (`frontend/src/App.tsx`) provides **17 dedicated enterprise views** organized into four navigation groups:
-
-| Group | Route | Page Component | Purpose |
+| Stage | Agent Identity | Role Key | Core Responsibility |
 |---|---|---|---|
-| **Core** | `/` | `OverviewPage` | Executive HQ dashboard, KPIs, 9-stage lifecycle, live project feed |
-| | `/projects/new` | `NewProjectPage` | Autonomous project intake & workflow initialization |
-| | `/projects` | `ProjectsPage` | Searchable and status-filterable project catalog |
-| | `/projects/:id` | `ProjectDetailsPage` | Deep dive into a single project's workflow, artifacts, QA, and security |
-| | `/workforce` | `WorkforcePage` | Directory and telemetry for all 10 specialized AI agents |
-| **Engineering** | `/workflow-studio` | `WorkflowStudioPage` | Interactive multi-agent DAG graph engine with run/pause/resume/cancel |
-| | `/tasks` | `TaskCenterPage` | Granular task queue, status tracking, and retry controls |
-| | `/workspace` | `CodeWorkspacePage` | File tree explorer, syntax-highlighted artifact viewer, and `.zip` export |
-| | `/testing` | `TestingQAPage` | Automated test runs, assertion counts, and failure trace diagnostics |
-| | `/security` | `SecurityCenterPage` | SAST & OWASP vulnerability dashboard with severity breakdown and CWE fixes |
-| **Governance & Ops** | `/architecture` | `ArchitectureIntelligencePage` | System blueprint, component topology, and stack intelligence |
-| | `/approvals` | `ApprovalsCenterPage` | Human-in-the-loop approval queue with approve/reject & audit notes |
-| | `/git-releases` | `GitReleasesPage` | Simulated repository status, commit history, and pull request workflow |
-| | `/reports` | `EngineeringReportsPage` | Executive delivery reports with Markdown export |
-| **Observability** | `/analytics` | `AnalyticsPage` | Token usage, LLM cost tracking, quality gate scores, and ROI calculator |
-| | `/audit-logs` | `AuditLogsPage` | Immutable chronological activity log of system and human actions |
-| | `/settings` | `SettingsPage` | Platform configuration, model selection, and workspace preferences |
+| **01** | **Alex Vance** | `supervisor` | Orchestrates the 10-stage execution plan, dependency graph, and delivery gating |
+| **02** | **Sarah Chen** | `product_manager` | Produces structured PRDs, user stories, functional requirements, and MVP scope |
+| **03** | **Marcus Aurelius** | `system_architect` | Designs system topology, API contracts, relational schemas, and ADRs |
+| **04** | **David Thorne** | `backend_developer` | Generates FastAPI endpoints, Pydantic models, and DB layers (with Python AST validation) |
+| **05** | **Elena Rostova** | `frontend_developer` | Builds modular React 19 + TypeScript components and API integrations |
+| **06** | **Claire Dupont** | `code_reviewer` | Performs static peer reviews across architecture boundaries and type safety |
+| **07** | **Tariq Mansour** | `qa_engineer` | Generates pytest suites, verifies Python AST syntax, and runs isolated sandbox tests |
+| **08** | **Aiden Cross** | `security_agent` | Executes deterministic OWASP/CWE SAST scans across all generated artifacts |
+| **09** | **Maya Patel** | `documentation_agent` | Authors READMEs, runbooks, OpenAPI docs, and 18-section delivery dossiers |
+| **10** | **Devon Brooks** | `deployment_agent` | Produces production Dockerfiles, Compose manifests, and healthcheck configs |
 
 ---
 
-## 6. Backend Architecture & Database Schema (18 Models)
+## 4. Complete Feature Reference
 
-Defined in `backend/app/db/models.py`, SYNAPSE uses SQLAlchemy 2.0 ORM with cross-platform `JSON`/`JSONB` column mapping (`JSON().with_variant(JSONB, "postgresql")`), allowing seamless operation on both **PostgreSQL 16** and **SQLite**.
+### Commercial & Onboarding Experience
+- **Public Landing Page (`/`)**: Interactive 10-Agent Pipeline Simulator where visitors enter any app idea (or pick presets) and watch all 10 color-coded agents coordinate live, plus 1-click **Launch Live Demo Workspace**.
+- **Authentication & Recovery (`/login`, `/register`)**: Email/password registration, login, 1-click Demo Workspace login (`demo@synapse.ai`), and time-limited signed **Password Reset** (`/api/v1/auth/forgot-password` & `/reset-password`).
+- **Pricing & Stripe Billing (`/pricing`)**: Starter ($0, 3 projects), Pro ($49/mo or $39/mo annual, unlimited), and Enterprise (custom) tiers wired to `/api/v1/billing/checkout` (live Stripe Checkout when configured, or self-hosted plan switch) and `/api/v1/billing/webhook` with HMAC-SHA256 signature verification.
+- **Legal & Support (`/terms`, `/privacy`, `/support`)**: Terms of Service, Privacy Policy, and Support/Enterprise contact hub.
 
-### Data Models
-
-| Domain | Models | Key Purpose |
-|---|---|---|
-| **Identity & Multi-Tenancy** | `User`, `Workspace` | Workspace ownership and role-based administration |
-| **Project & Agent Fleet** | `Project`, `Agent` | Project metadata, tech stack, progress, and agent fleet metrics |
-| **Workflow & Execution** | `Workflow`, `WorkflowNode`, `WorkflowEdge`, `Execution`, `Task`, `AgentMessage` | Directed acyclic graph (DAG) topology, stage timing, task dependencies, retries, and inter-agent messages |
-| **Deliverables** | `Artifact` | Versioned source code and documentation files with checksums and language metadata |
-| **Quality & Security** | `TestRun`, `TestResult`, `SecurityScan`, `SecurityFinding` | Automated QA runs, assertion diagnostics, SAST scans, severity counts, and CWE remediation |
-| **Governance & Observability** | `ApprovalRequest`, `AuditLog`, `LLMUsageRecord` | Human gate decisions, immutable audit trail, and token/latency/cost accounting |
+### Core Engineering Workspace (`/app/*`)
+- **Command Center (`/app`)**: Executive overview with live KPI strip (Projects, Agent Executions, Avg Stage Latency, Inference Spend), Quick-Start Onboarding checklist, Active Pipelines, 10-Stage Autonomous Lifecycle, and Workforce Fleet.
+- **Projects & Creation (`/app/projects`, `/app/projects/new`, `/app/projects/:id`)**: Debounced search, status filtering, dynamic tech-stack selection per project type, Human Approval Gate toggle, and Starter plan quota enforcement (`402 Payment Required`).
+- **Agent Workforce (`/app/agents`)**: 10 bespoke geometric `AgentGlyph` symbols, live status & reliability gauges, and a sticky System Prompt & Guardrails inspector.
+- **Workflow Studio (`/app/workflows`)**: Interactive drag-to-pan & zoomable node graph with live WebSocket updates, dynamic SVG edges mapped to `workflow.edges`, Start/Pause/Resume/Cancel controls, and inline Human Approval Gate banner.
+- **Code Workspace (`/app/code`)**: Multi-file artifact browser, line-numbered code viewer, clipboard copy, and Zip-Slip-hardened full codebase ZIP export.
+- **Testing & QA (`/app/testing`)**: Real Python AST syntax verification and pytest sandbox execution (`Docker --network=none --read-only` when `SANDBOX_MODE=docker`, or sanitized local fallback) with real pass/fail/skipped diagnostics.
+- **Security Center (`/app/security`)**: Deterministic SAST static analysis scanning stored project artifacts for CWE-798 (hardcoded secrets), CWE-95 (`eval`/`exec`), CWE-78 (`shell=True`), CWE-89 (SQL interpolation), CWE-942 (wildcard CORS), CWE-79 (`dangerouslySetInnerHTML`), and CWE-295 (`verify=False`).
+- **Approvals Center (`/app/approvals`)**: Human-in-the-loop sign-off queue displaying real PRD and architecture evidence from `metadata_json`.
+- **Architecture Intelligence (`/app/architecture`)**: Component topology, ADRs, API contract table, and relational DB schema explorer.
+- **Git & Releases (`/app/git`)**: Commit history, Pull Requests with merge actions, branches, and **Push to GitHub** modal powered by the GitHub Contents REST API.
+- **Engineering Delivery Reports (`/app/reports`)**: Live 18-section release dossier computed from real DB records with Markdown download and Print/PDF export.
+- **Analytics & ROI (`/app/analytics`)**: Live per-agent workload distribution, model token/cost breakdown, and interactive ROI Projection Simulator.
+- **Audit Logs (`/app/audit`)**: Append-only event trail with event-type filtering and raw JSON detail modal.
+- **Persistent Settings (`/app/settings`)**: Live DB/Agent/Groq health cards + DB-persisted workspace name, LLM routing models, retry limits, sandbox timeout, and governance toggles.
 
 ---
 
-## 7. REST API & WebSocket Reference
-
-Base URL: `/api/v1` (Interactive OpenAPI docs available at `/docs`).
-
-### Core Endpoints
+## 5. REST & WebSocket API Reference
 
 | Module | Method | Endpoint | Description |
 |---|---|---|---|
-| **Health** | `GET` | `/health` or `/api/v1/health` | Service status, database connectivity, and registered agent count |
-| **Projects** | `GET` | `/api/v1/projects` | List projects with optional `search` and `status` filters |
-| | `POST` | `/api/v1/projects` | Create project and auto-generate multi-agent workflow DAG |
-| | `GET` | `/api/v1/projects/{id}` | Retrieve project summary |
-| | `GET` | `/api/v1/projects/{id}/details` | Retrieve full project details (workflow, artifacts, tests, security) |
-| | `PUT` / `DELETE` | `/api/v1/projects/{id}` | Update or delete a project |
-| **Agents** | `GET` | `/api/v1/agents` | List all specialized AI agents |
-| | `GET` | `/api/v1/agents/{id}` | Get agent profile and metrics |
-| | `GET` | `/api/v1/agents/{id}/tasks` | List tasks assigned to a specific agent |
-| **Workflows** | `GET` | `/api/v1/workflows/project/{project_id}` | Fetch project workflow graph (nodes & edges) |
-| | `POST` | `/api/v1/workflows/{id}/start` | Start autonomous multi-agent execution |
-| | `POST` | `/api/v1/workflows/{id}/pause` | Pause an active workflow |
-| | `POST` | `/api/v1/workflows/{id}/resume` | Resume a paused workflow |
-| | `POST` | `/api/v1/workflows/{id}/cancel` | Cancel an active workflow |
-| **Tasks** | `GET` | `/api/v1/tasks` | Filter tasks by `project_id`, `status`, or `agent_id` |
-| | `POST` | `/api/v1/tasks/{id}/retry` | Retry a failed task |
-| **Artifacts** | `GET` | `/api/v1/artifacts/project/{project_id}` | List generated code and documentation artifacts |
-| | `GET` | `/api/v1/artifacts/project/{project_id}/tree` | Retrieve nested directory tree |
-| | `GET` | `/api/v1/artifacts/project/{project_id}/download` | Download full project codebase as a `.zip` archive |
-| **Testing & QA** | `GET` | `/api/v1/testing/project/{project_id}` | Retrieve QA test runs and individual results |
-| | `POST` | `/api/v1/testing/project/{project_id}/execute` | Trigger automated test suite execution |
-| **Security** | `GET` | `/api/v1/security/project/{project_id}` | Retrieve SAST security scans and findings |
-| | `POST` | `/api/v1/security/project/{project_id}/execute` | Trigger a new security vulnerability scan |
-| **Approvals** | `GET` | `/api/v1/approvals` | List human-in-the-loop approval requests |
-| | `POST` | `/api/v1/approvals/{id}/resolve` | Approve or reject a gated action with comments |
-| **Git & Releases** | `GET` | `/api/v1/git/project/{project_id}` | Repository status, commits (`/commits`), and pull requests (`/pull-requests`) |
-| | `POST` | `/api/v1/git/project/{project_id}/pull-requests` | Create or merge (`/{pr_id}/merge`) pull requests |
-| **Architecture & Reports** | `GET` | `/api/v1/architecture/project/{project_id}` | System architecture intelligence and component topology |
-| | `GET` | `/api/v1/reports/project/{project_id}` | Engineering delivery report (JSON or `/markdown` download) |
-| **Analytics & Audit** | `GET` | `/api/v1/analytics/overview` | Platform-wide KPIs, token totals, and estimated cost |
-| | `GET` | `/api/v1/analytics/agents` | Per-agent workload and success metrics |
-| | `GET` | `/api/v1/analytics/usage` | Detailed LLM token usage records |
-| | `GET` | `/api/v1/audit/logs` | Chronological audit log stream |
-| **WebSockets** | `WS` | `/ws/global` | Global real-time platform event stream |
-| | `WS` | `/ws/projects/{project_id}` | Project-scoped real-time workflow & agent telemetry |
+| **Health** | `GET` | `/health`, `/api/v1/health` | Live DB dialect, registered agents count, and Groq config status |
+| **Auth** | `POST` | `/api/v1/auth/register` | Create user + isolated workspace, returns HS256 JWT |
+| | `POST` | `/api/v1/auth/login` | Authenticate credentials, returns HS256 JWT |
+| | `POST` | `/api/v1/auth/demo-login` | One-click sign-in to seeded SYNAPSE HQ workspace |
+| | `GET` | `/api/v1/auth/me` | Return authenticated user & workspace profile |
+| | `POST` | `/api/v1/auth/forgot-password` | Issue 30-minute signed password reset token |
+| | `POST` | `/api/v1/auth/reset-password` | Validate reset token and update PBKDF2 password hash |
+| **Billing** | `GET` | `/api/v1/billing/status` | Workspace plan, project quota usage, Stripe status |
+| | `POST` | `/api/v1/billing/checkout` | Create Stripe Checkout Session or switch self-hosted plan |
+| | `POST` | `/api/v1/billing/webhook` | Verified Stripe HMAC-SHA256 subscription webhook handler |
+| **Settings** | `GET`, `PUT` | `/api/v1/settings` | Read and persist workspace LLM & execution guardrails |
+| **Projects** | `GET`, `POST` | `/api/v1/projects` | Workspace-scoped project list & creation (enforces quotas) |
+| | `GET`, `PUT`, `DELETE` | `/api/v1/projects/{id}` | Project CRUD & full `/details` endpoint |
+| **Workflows** | `GET` | `/api/v1/workflows/project/{id}` | Fetch workflow graph (`nodes` & `edges`) |
+| | `POST` | `/api/v1/workflows/{id}/{start,pause,resume,cancel}` | Control autonomous multi-agent execution |
+| **Agents & Tasks** | `GET` | `/api/v1/agents`, `/api/v1/tasks` | Agent roster, live metrics, task queue, and task retry |
+| **Artifacts** | `GET` | `/api/v1/artifacts/project/{id}` | List generated files, tree, and `/download` ZIP archive |
+| **QA & Security** | `GET`, `POST` | `/api/v1/testing/project/{id}[/execute]` | List or run real AST + sandbox pytest verification |
+| | `GET`, `POST` | `/api/v1/security/project/{id}[/execute]` | List or run real deterministic SAST static audit |
+| **Git & GitHub** | `GET`, `POST` | `/api/v1/git/project/{id}/{commits,pull-requests,push-github}` | Commits, PR merge, and direct GitHub REST API push |
+| **Governance** | `GET`, `POST` | `/api/v1/approvals`, `/api/v1/architecture/project/{id}`, `/api/v1/reports/project/{id}`, `/api/v1/audit/logs`, `/api/v1/analytics/*` | Approvals, ADRs, delivery dossiers, audit logs, telemetry |
+| **WebSocket** | `WS` | `/ws/projects/{project_id}`, `/ws/global` | Real-time execution and stage completion stream |
 
 ---
 
-## 8. Installation, Configuration & Running Locally
+## 6. Database Schema (18 SQLAlchemy Models)
 
-### Prerequisites
-- **Python 3.11+** (verified on Python 3.14)
-- **Node.js 20+** and **npm** (verified on Node.js v26.13.1 LTS)
-- **PostgreSQL 16** (optional — SYNAPSE automatically falls back to local SQLite if PostgreSQL is not running)
-- **Groq API Key** (optional for live LLM generation; configure in `backend/.env`)
+Defined in `backend/app/db/models.py` using cross-platform `JSON_TYPE` (`JSONB` on PostgreSQL, `JSON` on SQLite):
+- **Identity & Tenancy:** `User` (with `password_hash`), `Workspace` (with `plan`, `settings_json`), `Project`
+- **Orchestration:** `Agent`, `Workflow`, `WorkflowNode`, `WorkflowEdge`, `Task`, `Execution`, `AgentMessage`
+- **Artifacts & Verification:** `Artifact`, `TestRun`, `TestResult`, `SecurityScan`, `SecurityFinding`
+- **Governance & Telemetry:** `ApprovalRequest`, `AuditLog`, `LLMUsageRecord`
 
-### Step 1: Configure Environment Variables
+---
 
-Copy `backend/.env.example` to `backend/.env` and customize as needed:
+## 7. Security Architecture
+
+- **Authentication:** PBKDF2-HMAC-SHA256 (`120,000` iterations, per-user random salt) + HS256 JWT (`JWT_SECRET_KEY`).
+- **Multi-Tenant Isolation:** `resolve_active_workspace_id()` scopes project reads/writes to the authenticated user's workspace; set `REQUIRE_AUTH=true` in production to reject unauthenticated requests with `401`.
+- **Middleware:** Pure-ASGI `SecurityAndRateLimitMiddleware` injects `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, and enforces per-IP sliding-window rate limiting (`RATE_LIMIT_PER_MINUTE`).
+- **Filesystem & Archive Hardening:** Path traversal containment checks in `GitService` and `CodeSandbox`, Zip Slip path-segment stripping in `artifacts.py`, sanitized quoted `Content-Disposition` headers in `artifacts.py` and `reports.py`.
+- **Container Hardening:** Multi-stage `backend/Dockerfile` runs as non-root `USER synapse` with `HEALTHCHECK` and `.dockerignore`.
+
+---
+
+## 8. Environment Variables (`backend/.env`)
 
 ```env
 PROJECT_NAME=SYNAPSE
 API_V1_STR=/api/v1
-ENVIRONMENT=development
-DATABASE_URL=postgresql+psycopg://synapse:synapse_dev_2026@localhost:5433/synapse_db
-GROQ_API_KEY=your_groq_api_key_here
+ENVIRONMENT=production
+DATABASE_URL=postgresql+psycopg://user:password@host:5432/synapse_db
+
+# Security & Multi-Tenancy
+JWT_SECRET_KEY=<generate-64-char-random-secret>
+JWT_EXPIRE_MINUTES=1440
+REQUIRE_AUTH=true
+CORS_ORIGINS=https://your-frontend-domain.com
+RATE_LIMIT_PER_MINUTE=240
+
+# LLM Provider
+GROQ_API_KEY=gsk_...
 GROQ_PRIMARY_MODEL=llama-3.3-70b-versatile
 GROQ_FAST_MODEL=llama-3.1-8b-instant
+
+# Billing (Stripe) & GitHub Export
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRO_PRICE_ID=price_...
+FRONTEND_URL=https://your-frontend-domain.com
+GITHUB_TOKEN=
+
+# Sandbox & Execution
 MAX_RETRIES_PER_TASK=3
 SANDBOX_TIMEOUT_SECONDS=30
+SANDBOX_MODE=docker
 ```
 
-### Step 2: Start the Backend (FastAPI)
+---
 
+## 9. Testing & Production Cloud Deployment (Phase 5)
+
+### Run Automated Verification
 ```powershell
+# Backend unit, integration & security suite (22 tests)
 cd backend
-python -m venv .venv
-.\.venv\Scripts\pip.exe install -r requirements.txt
-.\.venv\Scripts\uvicorn.exe app.main:app --host 127.0.0.1 --port 8000 --reload
-```
+.\.venv\Scripts\pytest.exe tests/ -v
 
-> **Windows Tip (Application Control / Port Conflicts):**
-> - If Windows Application Control blocks SQLAlchemy 2.1's compiled Cython `.pyd` extension, install pure-Python SQLAlchemy 2.0:
->   ```powershell
->   $env:DISABLE_SQLALCHEMY_CEXT="1"
->   .\.venv\Scripts\pip.exe install --force-reinstall --no-binary sqlalchemy "sqlalchemy==2.0.48"
->   ```
-> - If port `8000` is already in use on your machine, start Uvicorn on another port (e.g. `--port 8001`) and create `frontend/.env.local`:
->   ```env
->   VITE_API_ORIGIN=http://127.0.0.1:8001
->   VITE_WS_ORIGIN=ws://127.0.0.1:8001
->   ```
-
-### Step 3: Start the Frontend (React + Vite)
-
-```powershell
+# Frontend TypeScript check, production build & lint
 cd frontend
-npm install
-npm run dev
+npm run build
+npm run lint
 ```
 
-Open **http://localhost:5173** in your browser.
-
----
-
-## 9. Docker Deployment
-
-To launch PostgreSQL 16 and the FastAPI backend via Docker Compose:
-
-```powershell
-docker compose up -d
-```
-
-Services started:
-- `synapse-db`: PostgreSQL 16 Alpine exposed on `localhost:5433`
-- `synapse-backend`: FastAPI server exposed on `localhost:8000`
-
----
-
-## 10. Testing & Verification
-
-### Automated Backend API Tests
-```powershell
-cd backend
-.\.venv\Scripts\python.exe tests/test_api.py
-```
-
-### Live End-to-End Verification Results
-- **Health Check**: `GET /health` returned `200 OK` with `status: "healthy"` and `10` registered agents ready.
-- **End-to-End Autonomous Run**: Created project **TaskFlow AI** (`POST /api/v1/projects` -> `201 Created`) and executed the complete multi-agent DAG workflow to `completed` (`Current Step: Delivered`).
-- **Generated Deliverables**: `12` code & documentation artifacts, `8/8` QA assertions passing (`100%`), `0` Critical / `0` High SAST findings, `94/100` Code Review score, `3,495` tokens processed (`$0.0025` estimated cost).
+### Recommended Cloud Deployment Stack
+1. **Database:** Provision managed **PostgreSQL 16** on Neon, Supabase, or AWS RDS and run `alembic upgrade head`.
+2. **Backend API:** Deploy `backend/Dockerfile` to **Railway**, **Render**, or **Fly.io** with all production env vars (`REQUIRE_AUTH=true`, `SANDBOX_MODE=docker`, `STRIPE_*`, `GROQ_API_KEY`).
+3. **Frontend App:** Deploy `frontend/` to **Vercel** or **Cloudflare Pages** with `VITE_API_ORIGIN=https://api.yourdomain.com` and `VITE_WS_ORIGIN=wss://api.yourdomain.com`.
+4. **Stripe Webhook:** Point Stripe Dashboard webhook to `https://api.yourdomain.com/api/v1/billing/webhook` for `checkout.session.completed` and `customer.subscription.deleted`.

@@ -14,7 +14,8 @@ class BackendDeveloperAgent:
         """Generate backend codebase files."""
         system_prompt = (
             "You are the Backend Developer Agent at SYNAPSE. Generate production FastAPI code, Pydantic models, "
-            "and SQLAlchemy database operations based on the architectural specification."
+            "and SQLAlchemy database operations based on the architectural specification. "
+            "Return JSON: {\"files\": [{\"path\": \"backend/app/...\", \"filename\": \"...\", \"language\": \"python\", \"content\": \"...\"}]}"
         )
         user_prompt = f"Project: {project_name}\nEndpoints: {architecture.get('api_endpoints', [])}\nTables: {architecture.get('database_tables', [])}"
 
@@ -24,6 +25,27 @@ class BackendDeveloperAgent:
             project_id=project_id,
             agent_name=cls.NAME,
         )
+
+        # Adopt live LLM-generated files when valid Python AST parses cleanly
+        if isinstance(res, dict) and isinstance(res.get("files"), list) and len(res["files"]) > 0:
+            import ast
+            valid_llm_files = []
+            for f in res["files"]:
+                if not isinstance(f, dict) or not f.get("path") or not f.get("content"):
+                    continue
+                if str(f["path"]).endswith(".py"):
+                    try:
+                        ast.parse(f["content"])
+                    except SyntaxError:
+                        continue
+                valid_llm_files.append({
+                    "path": str(f["path"]),
+                    "filename": str(f.get("filename") or str(f["path"]).split("/")[-1]),
+                    "language": str(f.get("language") or "python"),
+                    "content": str(f["content"]),
+                })
+            if valid_llm_files:
+                return valid_llm_files
 
         # High-fidelity code files
         main_api_code = f'''"""FastAPI service endpoints for {project_name}."""

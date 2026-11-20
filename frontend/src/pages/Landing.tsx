@@ -314,10 +314,11 @@ export const Landing: React.FC = () => {
       <footer style={{ borderTop: "1px solid var(--border-color)", padding: "28px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16, fontSize: 13, color: "var(--text-muted)" }}>
           <strong style={{ color: "#FFFFFF" }}>Synapse — Autonomous AI Engineering Platform</strong>
-          <div style={{ display: "flex", gap: 22 }}>
+          <div style={{ display: "flex", gap: 22, flexWrap: "wrap" }}>
             <Link to="/pricing" style={{ textDecoration: "none" }}>Pricing</Link>
-            <Link to="/login" style={{ textDecoration: "none" }}>Sign In</Link>
-            <Link to="/register" style={{ textDecoration: "none" }}>Register</Link>
+            <Link to="/terms" style={{ textDecoration: "none" }}>Terms</Link>
+            <Link to="/privacy" style={{ textDecoration: "none" }}>Privacy</Link>
+            <Link to="/support" style={{ textDecoration: "none" }}>Support</Link>
             <Link to="/app" style={{ textDecoration: "none", color: "#F9A8D4" }}>Workspace →</Link>
           </div>
         </div>

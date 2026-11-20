@@ -125,3 +125,32 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+
+def resolve_active_workspace_id(
+    db: Session,
+    current_user: Optional[User],
+    require_auth: Optional[bool] = None,
+) -> Optional[str]:
+    """
+    Resolve the tenant workspace_id for multi-tenant isolation.
+    - If REQUIRE_AUTH is enabled and no user is present, raises 401.
+    - If a user is authenticated, strictly returns their owned workspace ID.
+    - In open local/demo mode (no token), returns the default workspace ID.
+    """
+    from app.db.models import Workspace
+
+    enforce = settings.REQUIRE_AUTH if require_auth is None else require_auth
+    if enforce and not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required for this workspace resource",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if current_user:
+        ws = db.query(Workspace).filter(Workspace.owner_id == current_user.id).first()
+        if ws:
+            return ws.id
+    default_ws = db.query(Workspace).filter(Workspace.slug == "default-workspace").first()
+    return default_ws.id if default_ws else None

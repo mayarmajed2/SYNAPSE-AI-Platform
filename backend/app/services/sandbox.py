@@ -144,16 +144,32 @@ class CodeSandbox:
             test_file = test_dir / "test_suite.py"
             test_file.write_text(test_script_content, encoding="utf-8")
 
-        # Execute pytest using current python venv in non-root isolated manner
-        python_bin = sys.executable
-        cmd = [python_bin, "-m", "unittest", "discover", "-s", "tests", "-p", "test*.py"]
+        # Use Docker container isolation when SANDBOX_MODE="docker" (network=none, read-only, capped RAM/CPU)
+        from app.core.config import settings as app_settings
+        effective_timeout = timeout_seconds or app_settings.SANDBOX_TIMEOUT_SECONDS
+        use_docker = app_settings.SANDBOX_MODE == "docker"
 
-        # If pytest is available in environment, prefer pytest
-        try:
-            subprocess.run([python_bin, "-m", "pytest", "--version"], capture_output=True, check=True)
-            cmd = [python_bin, "-m", "pytest", "-v", "--tb=short", "tests/"]
-        except Exception:
-            pass
+        if use_docker:
+            cmd = [
+                "docker", "run", "--rm",
+                "--network=none",
+                "--read-only",
+                "--memory=256m",
+                "--cpus=0.5",
+                "--tmpfs", "/tmp:rw,size=64m",
+                "-v", f"{str(workspace.resolve())}:/workspace:ro",
+                "-w", "/workspace",
+                "python:3.12-slim",
+                "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test*.py",
+            ]
+        else:
+            python_bin = sys.executable
+            cmd = [python_bin, "-m", "unittest", "discover", "-s", "tests", "-p", "test*.py"]
+            try:
+                subprocess.run([python_bin, "-m", "pytest", "--version"], capture_output=True, check=True)
+                cmd = [python_bin, "-m", "pytest", "-v", "--tb=short", "tests/"]
+            except Exception:
+                pass
 
         try:
             proc = subprocess.run(
@@ -162,7 +178,7 @@ class CodeSandbox:
                 env=cls._sanitize_env(),
                 capture_output=True,
                 text=True,
-                timeout=timeout_seconds,
+                timeout=effective_timeout,
             )
             duration_ms = int((time.time() - start_time) * 1000)
 
