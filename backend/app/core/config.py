@@ -28,6 +28,7 @@ class Settings:
     # Security & Authentication
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "") or secrets.token_urlsafe(32)
     JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "1440"))
+    REQUIRE_AUTH: bool = os.getenv("REQUIRE_AUTH", "false").lower() == "true"
     CORS_ORIGINS: List[str] = _parse_csv(
         os.getenv("CORS_ORIGINS", ""),
         [
@@ -39,14 +40,22 @@ class Settings:
     )
     RATE_LIMIT_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "240"))
 
+    # Billing (Stripe) & GitHub Integrations
+    STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
+    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    STRIPE_PRO_PRICE_ID: str = os.getenv("STRIPE_PRO_PRICE_ID", "")
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://127.0.0.1:5173")
+    GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
+
     # Groq AI Provider
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     GROQ_PRIMARY_MODEL: str = os.getenv("GROQ_PRIMARY_MODEL", "llama-3.3-70b-versatile")
     GROQ_FAST_MODEL: str = os.getenv("GROQ_FAST_MODEL", "llama-3.1-8b-instant")
 
-    # Execution limits
+    # Execution limits & Sandbox Isolation
     MAX_RETRIES_PER_TASK: int = int(os.getenv("MAX_RETRIES_PER_TASK", "3"))
     SANDBOX_TIMEOUT_SECONDS: int = int(os.getenv("SANDBOX_TIMEOUT_SECONDS", "30"))
+    SANDBOX_MODE: str = os.getenv("SANDBOX_MODE", "auto")  # "docker" | "local" | "auto"
 
 
 settings = Settings()

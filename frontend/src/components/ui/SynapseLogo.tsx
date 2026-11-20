@@ -40,7 +40,7 @@ export const SynapseLogo: React.FC<SynapseLogoProps> = ({
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            transform: "scale(1.38)",
+            transform: "scale(1.22)",
             display: "block",
           }}
         />

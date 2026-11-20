@@ -3,9 +3,10 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.core.security import get_optional_user, resolve_active_workspace_id
 from app.db.database import get_db
 from app.db.enums import AuditEventType, NodeStatus, ProjectStatus, WorkflowStatus
-from app.db.models import Artifact, Project, SecurityScan, TestRun, Workflow, WorkflowEdge, WorkflowNode, Workspace
+from app.db.models import Artifact, Project, SecurityScan, TestRun, User, Workflow, WorkflowEdge, WorkflowNode, Workspace
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectSummary, ProjectUpdate
 from app.services.audit import log_event
 from app.services.websocket_manager import ws_manager
@@ -20,11 +21,17 @@ def slugify(text: str) -> str:
 
 
 @router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
-async def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
-    """Create a new project and initialize its autonomous multi-agent workflow."""
-    # Ensure default workspace exists
+async def create_project(
+    data: ProjectCreate,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user),
+):
+    """Create a new project scoped to the active tenant workspace and enforce plan quotas."""
     workspace = None
-    if data.workspace_id:
+    active_ws_id = resolve_active_workspace_id(db, current_user)
+    if active_ws_id:
+        workspace = db.query(Workspace).filter(Workspace.id == active_ws_id).first()
+    if not workspace and data.workspace_id:
         workspace = db.query(Workspace).filter(Workspace.id == data.workspace_id).first()
     if not workspace:
         workspace = db.query(Workspace).first()
@@ -32,10 +39,21 @@ async def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
             workspace = Workspace(
                 name="Default Workspace",
                 slug="default-workspace",
-                description="Default engineering workspace"
+                description="Default engineering workspace",
+                plan="pro",
             )
             db.add(workspace)
             db.flush()
+
+    # Enforce Starter plan project quota (3 projects max)
+    plan = (getattr(workspace, "plan", "pro") or "pro").lower()
+    if plan == "starter":
+        current_count = db.query(Project).filter(Project.workspace_id == workspace.id).count()
+        if current_count >= 3:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="Starter plan limit reached (3 projects). Upgrade to Pro for unlimited autonomous projects.",
+            )
 
     import uuid as _uuid
     slug = f"{slugify(data.name)}-{_uuid.uuid4().hex[:6]}"
@@ -168,9 +186,13 @@ def list_projects(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
-    """List all projects with search and status filtering."""
+    """List projects strictly scoped to the active tenant workspace."""
+    workspace_id = resolve_active_workspace_id(db, current_user)
     query = db.query(Project)
+    if workspace_id and current_user:
+        query = query.filter(Project.workspace_id == workspace_id)
     if search:
         query = query.filter(Project.name.ilike(f"%{search}%") | Project.idea.ilike(f"%{search}%"))
     if status:

@@ -205,3 +205,37 @@ def test_path_traversal_and_git_project_validation(db):
     with pytest.raises(HTTPException) as exc:
         list_commits(project_id="nonexistent-id-123", db=db)
     assert exc.value.status_code == 404
+
+
+def test_phase_3_4_password_reset_billing_and_stripe_hmac(db):
+    import hashlib
+    import hmac
+    from app.api.v1.auth import ForgotPasswordRequest, ResetPasswordRequest, forgot_password, reset_password
+    from app.api.v1.billing import get_billing_status, verify_stripe_signature
+
+    # Register fresh user and test forgot -> reset -> login
+    email = f"reset-{uuid.uuid4().hex[:8]}@synapse-test.io"
+    register(RegisterRequest(email=email, full_name="Reset Tester", password="OldPassword123!"), db=db)
+    fp = forgot_password(ForgotPasswordRequest(email=email), db=db)
+    assert "dev_reset_token" in fp
+
+    rp = reset_password(ResetPasswordRequest(token=fp["dev_reset_token"], new_password="NewPassword456!"), db=db)
+    assert "updated" in rp["message"].lower()
+
+    # New password works
+    logged = login(LoginRequest(email=email, password="NewPassword456!"), db=db)
+    assert logged["user"]["email"] == email
+
+    # Billing status returns quota telemetry
+    user_row = db.query(User).filter(User.email == email).first()
+    status_data = get_billing_status(db=db, current_user=user_row)
+    assert status_data["plan"] == "starter"
+    assert status_data["projects_limit"] == 3
+
+    # Stripe HMAC-SHA256 webhook signature verification
+    secret = "whsec_test_secret_123"
+    payload = b'{"type":"checkout.session.completed"}'
+    ts = "1700000000"
+    sig = hmac.new(secret.encode(), f"{ts}.".encode() + payload, hashlib.sha256).hexdigest()
+    assert verify_stripe_signature(payload, f"t={ts},v1={sig}", secret) is True
+    assert verify_stripe_signature(payload, f"t={ts},v1=tampered", secret) is False

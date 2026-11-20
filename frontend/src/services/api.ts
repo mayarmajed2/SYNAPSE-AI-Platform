@@ -68,6 +68,15 @@ export const api = {
     request<any>("/auth/login", { method: "POST", body: JSON.stringify(data) }),
   demoLogin: () => request<any>("/auth/demo-login", { method: "POST" }),
   getMe: () => request<any>("/auth/me"),
+  forgotPassword: (email: string) =>
+    request<any>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
+  resetPassword: (token: string, new_password: string) =>
+    request<any>("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, new_password }) }),
+
+  // Billing & Subscriptions (Stripe / Quotas)
+  getBillingStatus: () => request<any>("/billing/status"),
+  createCheckout: (plan: string, billing_cycle: "monthly" | "annual" = "annual") =>
+    request<any>("/billing/checkout", { method: "POST", body: JSON.stringify({ plan, billing_cycle }) }),
 
   // Workspace Settings
   getSettings: () => request<any>("/settings"),
@@ -165,6 +174,11 @@ export const api = {
     }),
   mergePullRequest: (projectId: string, prId: number) =>
     request<any>(`/git/project/${projectId}/pull-requests/${prId}/merge`, { method: "POST" }),
+  pushToGitHub: (projectId: string, data: { repository: string; branch?: string; github_token?: string; commit_message?: string }) =>
+    request<any>(`/git/project/${projectId}/push-github`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
   // Architecture Intelligence
   getProjectArchitecture: (projectId: string) => request<any>(`/architecture/project/${projectId}`),

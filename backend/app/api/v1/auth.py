@@ -142,3 +142,51 @@ def demo_login(db: Session = Depends(get_db)):
 @router.get("/me")
 def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return _serialize_user(current_user, db)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(..., min_length=5, max_length=255)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(..., min_length=10)
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+
+@router.post("/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Generate a time-limited password reset token (returns dev token in development mode)."""
+    from app.core.config import settings as app_settings
+
+    email = payload.email.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+    response = {
+        "message": "If an account with that email exists, a password reset link has been issued.",
+    }
+    if user:
+        reset_token = create_access_token(
+            subject=user.id,
+            extra_claims={"purpose": "password_reset", "email": user.email},
+            expires_minutes=30,
+        )
+        if app_settings.ENVIRONMENT == "development":
+            response["dev_reset_token"] = reset_token
+    return response
+
+
+@router.post("/reset-password")
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Verify a signed password-reset token and update the user's password hash."""
+    from app.core.security import decode_access_token
+
+    claims = decode_access_token(payload.token)
+    if not claims or claims.get("purpose") != "password_reset" or not claims.get("sub"):
+        raise HTTPException(status_code=400, detail="Invalid or expired password reset token")
+
+    user = db.query(User).filter(User.id == claims["sub"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    return {"message": "Password updated successfully. You may now sign in."}

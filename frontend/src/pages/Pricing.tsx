@@ -83,9 +83,13 @@ export const Pricing: React.FC = () => {
     }
     setUpdatingPlan(planId);
     try {
-      await api.updateSettings({ plan: planId });
+      const res = await api.createCheckout(planId, annual ? "annual" : "monthly");
+      if (res?.mode === "stripe" && res?.checkout_url) {
+        window.location.href = res.checkout_url;
+        return;
+      }
       await refreshUser();
-      success(`Workspace switched to ${planId.toUpperCase()}`, "Your workspace configuration has been updated.");
+      success(`Workspace switched to ${planId.toUpperCase()}`, res?.message || "Your workspace plan has been updated.");
       navigate("/app/settings");
     } catch (err: any) {
       error("Could not update plan", err?.message || "Please try again.");

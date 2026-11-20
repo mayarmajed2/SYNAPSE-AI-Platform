@@ -8,6 +8,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { Landing } from "./pages/Landing";
 import { Pricing } from "./pages/Pricing";
 import { Auth } from "./pages/Auth";
+import { LegalPage } from "./pages/Legal";
 
 import { Overview } from "./pages/Overview";
 import { Projects } from "./pages/Projects";
@@ -41,6 +42,9 @@ export function App() {
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/login" element={<Auth mode="login" />} />
               <Route path="/register" element={<Auth mode="register" />} />
+              <Route path="/terms" element={<LegalPage section="terms" />} />
+              <Route path="/privacy" element={<LegalPage section="privacy" />} />
+              <Route path="/support" element={<LegalPage section="support" />} />
 
               {/* Authenticated / Workspace Application Routes */}
               <Route path="/app" element={<AppLayout />}>
