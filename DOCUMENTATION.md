@@ -45,7 +45,7 @@ SYNAPSE-CLONE/
 │   │   ├── workflows/       # runner.py, nodes.py, state.py
 │   │   └── main.py          # FastAPI entrypoint, safe column migrator, /health
 │   ├── alembic/             # Database migrations
-│   ├── tests/               # test_api.py (16 unit) + test_integration.py (6 integration/security)
+│   ├── tests/               # test_api.py (16 unit) + test_integration.py (7 integration/security, incl. test_normalize_database_url)
 │   ├── Dockerfile           # Multi-stage, non-root `synapse` user, git + curl HEALTHCHECK
 │   └── .env.example         # Complete environment configuration template
 ├── frontend/
@@ -197,7 +197,7 @@ SANDBOX_MODE=docker
 
 ### Run Automated Verification
 ```powershell
-# Backend unit, integration & security suite (22 tests)
+# Backend unit, integration & security suite (23 tests)
 cd backend
 .\.venv\Scripts\pytest.exe tests/ -v
 
@@ -207,8 +207,19 @@ npm run build
 npm run lint
 ```
 
-### Recommended Cloud Deployment Stack
-1. **Database:** Provision managed **PostgreSQL 16** on Neon, Supabase, or AWS RDS and run `alembic upgrade head`.
-2. **Backend API:** Deploy `backend/Dockerfile` to **Railway**, **Render**, or **Fly.io** with all production env vars (`REQUIRE_AUTH=true`, `SANDBOX_MODE=docker`, `STRIPE_*`, `GROQ_API_KEY`).
-3. **Frontend App:** Deploy `frontend/` to **Vercel** or **Cloudflare Pages** with `VITE_API_ORIGIN=https://api.yourdomain.com` and `VITE_WS_ORIGIN=wss://api.yourdomain.com`.
-4. **Stripe Webhook:** Point Stripe Dashboard webhook to `https://api.yourdomain.com/api/v1/billing/webhook` for `checkout.session.completed` and `customer.subscription.deleted`.
+### Live Production Deployment
+
+| Service | Host | Endpoint / Configuration | Status |
+|---|---|---|---|
+| **Live Web App (Frontend)** | **Vercel** (`Hobby`, Root: `frontend`) | `https://synapse-ai-platform-inky.vercel.app` | Live |
+| **Live Backend API & WS** | **Railway** (`Docker`, Root: `/backend`) | `https://synapse-ai-platform-production.up.railway.app` | Live |
+| **Interactive Swagger Docs** | Railway FastAPI OpenAPI | `https://synapse-ai-platform-production.up.railway.app/docs` | Live |
+| **Health & Groq Check** | Railway FastAPI | `https://synapse-ai-platform-production.up.railway.app/health` (`llm.configured: true`, `10` agents) | Healthy |
+| **LLM Inference** | **Groq Cloud** | `llama-3.3-70b-versatile` (primary) + `llama-3.1-8b-instant` (fast) | Configured |
+| **Static Showcase Demo** | **GitHub Pages** (`gh-pages`) | `https://mayarmajed2.github.io/SYNAPSE-AI-Platform/` (`VITE_DEMO_MODE=true`) | Live |
+
+### Cloud Deployment Architecture & Blueprints
+1. **Database:** Supports PostgreSQL 16 (normalized via `_normalize_database_url()` for Neon, Supabase, Render, or Railway) with automatic local SQLite fallback when `DATABASE_URL` is offline; run `alembic upgrade head` for managed migrations.
+2. **Backend API:** Deployed from `backend/Dockerfile` with `ENVIRONMENT=production`, `SANDBOX_MODE=local`, `GROQ_API_KEY`, `JWT_SECRET_KEY`, `CORS_ORIGINS`, and `FRONTEND_URL` (`render.yaml` is also included for Render Blueprint deploys).
+3. **Frontend App:** Deployed from `frontend/` using `frontend/vercel.json` SPA rewrites with `VITE_API_ORIGIN`, `VITE_WS_ORIGIN`, and `VITE_DEMO_MODE=false`.
+4. **Stripe Webhook (Optional):** Point Stripe Dashboard webhook to `https://synapse-ai-platform-production.up.railway.app/api/v1/billing/webhook` for `checkout.session.completed` and `customer.subscription.deleted`.

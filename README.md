@@ -6,14 +6,20 @@
 
 ### *Where 10 Autonomous AI Engineers Think, Build, Audit & Ship Together.*
 
+[![Live App — Vercel](https://img.shields.io/badge/Live%20App-Vercel-FF4D8D?style=for-the-badge&logo=vercel&logoColor=white)](https://synapse-ai-platform-inky.vercel.app)
+[![Live API — Railway](https://img.shields.io/badge/Live%20API-Railway-7C5CFF?style=for-the-badge&logo=railway&logoColor=white)](https://synapse-ai-platform-production.up.railway.app)
+[![Swagger Docs](https://img.shields.io/badge/API%20Docs-Swagger-38BDF8?style=for-the-badge&logo=swagger&logoColor=black)](https://synapse-ai-platform-production.up.railway.app/docs)
+[![Health & Groq AI](https://img.shields.io/badge/Health-Groq%20Ready-10B981?style=for-the-badge&logo=fastapi&logoColor=white)](https://synapse-ai-platform-production.up.railway.app/health)
+[![Static Demo](https://img.shields.io/badge/Static%20Demo-GitHub%20Pages-181717?style=for-the-badge&logo=github&logoColor=white)](https://mayarmajed2.github.io/SYNAPSE-AI-Platform/)
+
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Groq Llama 3.3 70B](https://img.shields.io/badge/Groq-Llama%203.3%2070B-FB923C?style=for-the-badge)](https://console.groq.com)
 [![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![Tests](https://img.shields.io/badge/Pytest-22%20Passing-FF4D8D?style=for-the-badge&logo=pytest&logoColor=white)](backend/tests/)
-[![License](https://img.shields.io/badge/Ready%20For-Beta%20%26%20Scale-7C5CFF?style=for-the-badge)](#)
+[![Tests](https://img.shields.io/badge/Pytest-23%20Passing-FF4D8D?style=for-the-badge&logo=pytest&logoColor=white)](backend/tests/)
 
-[**Full Technical Docs**](DOCUMENTATION.md) · [**Quick Start (60s)**](#-quick-start-in-60-seconds) · [**Meet the 10 Agents**](#-meet-your-10-ai-engineers) · [**Live UI Tour**](#-visual-tour) · [**API Cheat Sheet**](#-api-cheat-sheet)
+[**Try Live App 🚀**](https://synapse-ai-platform-inky.vercel.app) · [**Full PDF Docs**](docs/SYNAPSE_Full_Documentation.pdf) · [**Technical Docs**](DOCUMENTATION.md) · [**Quick Start (60s)**](#-quick-start-in-60-seconds) · [**Meet the 10 Agents**](#-meet-your-10-ai-engineers) · [**Visual Tour**](#-visual-tour) · [**API Cheat Sheet**](#-api-cheat-sheet)
 
 </div>
 
@@ -24,6 +30,16 @@
 Give **SYNAPSE** a product idea and watch a **10-specialist autonomous AI engineering team** turn it into an architected, tested, SAST-audited, Docker-packaged codebase—complete with **human-in-the-loop approval gates**, **live WebSocket telemetry**, **direct GitHub push**, and **100% downloadable code ownership**.
 
 > 💡 **No black-box magic.** Every PRD, ADR, source file, pytest assertion, security finding, and human sign-off is versioned, inspectable, and yours to keep.
+
+### 🌐 Live Production Stack
+
+| Component | Platform / Runtime | Live URL / Detail |
+|---|---|---|
+| **Web Application (Frontend)** | Vercel (`React 19` + `Vite 8` + `TypeScript`) | [**synapse-ai-platform-inky.vercel.app**](https://synapse-ai-platform-inky.vercel.app) |
+| **Backend API & WebSockets** | Railway (`Docker` + `FastAPI 2.0` + `/health`) | [**synapse-ai-platform-production.up.railway.app**](https://synapse-ai-platform-production.up.railway.app) |
+| **Interactive API Explorer** | FastAPI OpenAPI / Swagger UI | [**/docs**](https://synapse-ai-platform-production.up.railway.app/docs) · [**/health**](https://synapse-ai-platform-production.up.railway.app/health) |
+| **AI Inference Engine** | Groq Cloud (`llama-3.3-70b-versatile` / `3.1-8b-instant`) | Live on Railway (`"configured": true`) |
+| **Standalone Static Demo** | GitHub Pages (`VITE_DEMO_MODE=true`) | [**mayarmajed2.github.io/SYNAPSE-AI-Platform**](https://mayarmajed2.github.io/SYNAPSE-AI-Platform/) |
 
 <div align="center">
   <img src="screenshots/01-landing-playground.png" alt="SYNAPSE Landing Page & Interactive 10-Agent Playground" width="100%" />
@@ -180,11 +196,11 @@ Open **[http://127.0.0.1:5173](http://127.0.0.1:5173)** and click **Launch Live 
 ## 🧪 Testing & Verification
 
 ```powershell
-# Run all 22 backend unit, integration & security tests
+# Run all 23 backend unit, integration & security tests
 cd backend && .\.venv\Scripts\pytest.exe tests/ -v
 
 # Type-check, build & lint the React 19 frontend
 cd frontend && npm run build && npm run lint
 ```
 
-For full architecture diagrams, database schemas, security checklists, and cloud deployment guides, read **[DOCUMENTATION.md](DOCUMENTATION.md)** or download the executive report **[docs/Synapse_Phase_1_2_Implementation_Report.pdf](docs/Synapse_Phase_1_2_Implementation_Report.pdf)**.
+For full architecture diagrams, database schemas, security checklists, and cloud deployment guides, read **[DOCUMENTATION.md](DOCUMENTATION.md)** or download the full PDF manual **[docs/SYNAPSE_Full_Documentation.pdf](docs/SYNAPSE_Full_Documentation.pdf)** and engineering audit report **[docs/Synapse_Phase_1_2_Implementation_Report.pdf](docs/Synapse_Phase_1_2_Implementation_Report.pdf)**.
