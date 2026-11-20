@@ -8,18 +8,15 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
-  Code2,
-  FlaskConical,
-  ShieldCheck,
-  CheckCircle2,
-  XCircle,
+  ArrowUpRight,
   GitBranch,
-  PlusCircle,
+  Plus,
 } from "lucide-react";
 import { api } from "../services/api";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
+import { AgentGlyph } from "../components/ui/AgentGlyph";
 import { ErrorBanner, EmptyState, LoadingSkeleton } from "../components/ui/PageState";
 
 export const WorkflowStudio: React.FC = () => {
@@ -36,8 +33,7 @@ export const WorkflowStudio: React.FC = () => {
   const [actionBusy, setActionBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Interactive pan & zoom state
-  const [zoom, setZoom] = useState(0.85);
+  const [zoom, setZoom] = useState(0.84);
   const [pan, setPan] = useState({ x: 24, y: 24 });
   const dragRef = useRef<{ dragging: boolean; startX: number; startY: number; origX: number; origY: number }>({
     dragging: false,
@@ -62,7 +58,7 @@ export const WorkflowStudio: React.FC = () => {
         return nodes[0]?.id || null;
       });
     } catch (err: any) {
-      setErrorMsg(err?.message || "Failed to load workflow graph.");
+      setErrorMsg(err?.message || "Failed to load workflow.");
     }
   }, []);
 
@@ -78,9 +74,7 @@ export const WorkflowStudio: React.FC = () => {
         setProjects(arr);
         const target = searchParams.get("project") || arr[0]?.id || "";
         setSelectedProjectId(target);
-        if (target) {
-          return loadWorkflow(target);
-        }
+        if (target) return loadWorkflow(target);
       })
       .catch((err) => {
         if (active) setErrorMsg(err?.message || "Failed to load projects.");
@@ -111,10 +105,10 @@ export const WorkflowStudio: React.FC = () => {
       if (action === "pause") await api.pauseWorkflow(workflow.id);
       if (action === "resume") await api.resumeWorkflow(workflow.id);
       if (action === "cancel") await api.cancelWorkflow(workflow.id);
-      success(`Workflow ${action} requested`, "Live status will stream over WebSocket.");
+      success(`Workflow ${action}`, "Live graph updated.");
       await loadWorkflow(selectedProjectId);
     } catch (err: any) {
-      error("Workflow action failed", err?.message || "Please try again.");
+      error("Workflow action failed", err?.message);
     } finally {
       setActionBusy(false);
     }
@@ -124,7 +118,7 @@ export const WorkflowStudio: React.FC = () => {
     setActionBusy(true);
     try {
       await api.resolveApproval(approvalId, decision, `${decision} from Workflow Studio`, user?.full_name);
-      success(`Gate ${decision}`, decision === "approved" ? "Autonomous pipeline resumed." : "Pipeline halted.");
+      success(`Gate ${decision}`, decision === "approved" ? "Pipeline resumed." : "Pipeline halted.");
       await loadWorkflow(selectedProjectId);
     } catch (err: any) {
       error("Could not resolve approval", err?.message);
@@ -135,17 +129,13 @@ export const WorkflowStudio: React.FC = () => {
 
   if (loading) return <LoadingSkeleton rows={2} />;
 
-  if (!loading && projects.length === 0) {
+  if (projects.length === 0) {
     return (
       <EmptyState
-        icon={<GitBranch size={24} />}
-        title="No workflows available yet"
-        description="Create a software project first to generate and visualize its 10-stage autonomous multi-agent graph."
-        action={
-          <Link to="/app/projects/new" className="btn-primary">
-            <PlusCircle size={14} /> Launch New Project
-          </Link>
-        }
+        icon={<GitBranch size={22} />}
+        title="No workflows yet"
+        description="Create a software project to visualize its 10-stage multi-agent graph."
+        action={<Link to="/app/projects/new" className="btn-accent"><Plus size={14} /> New Project</Link>}
       />
     );
   }
@@ -160,34 +150,15 @@ export const WorkflowStudio: React.FC = () => {
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) || nodes[0] || null;
   const pendingApproval = approvals[0] || null;
 
-  const statusColors: Record<string, { bg: string; border: string; glow: string; badge: string }> = {
-    completed: { bg: "rgba(6, 78, 59, 0.38)", border: "rgba(16, 185, 129, 0.65)", glow: "0 0 20px rgba(16, 185, 129, 0.18)", badge: "badge-success" },
-    running: { bg: "rgba(30, 58, 138, 0.48)", border: "rgba(59, 130, 246, 0.85)", glow: "0 0 26px rgba(59, 130, 246, 0.35)", badge: "badge-cyan" },
-    failed: { bg: "rgba(136, 19, 55, 0.42)", border: "rgba(244, 63, 94, 0.75)", glow: "0 0 22px rgba(244, 63, 94, 0.25)", badge: "badge-error" },
-    waiting_approval: { bg: "rgba(120, 53, 15, 0.42)", border: "rgba(245, 158, 11, 0.75)", glow: "0 0 22px rgba(245, 158, 11, 0.25)", badge: "badge-warning" },
-    pending: { bg: "rgba(15, 23, 42, 0.86)", border: "rgba(148, 163, 184, 0.25)", glow: "var(--shadow-sm)", badge: "badge-neutral" },
-  };
-
   return (
-    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       {errorMsg && <ErrorBanner message={errorMsg} onRetry={() => loadWorkflow(selectedProjectId)} />}
 
-      {/* Toolbar */}
-      <div
-        className="card"
-        style={{
-          padding: "14px 18px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 12,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+      <div className="card" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>Workflow Studio</h1>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Interactive Multi-Agent Graph Engine (Drag canvas to pan)</div>
+            <h1 style={{ fontSize: 19, fontWeight: 800 }}>Workflow Studio</h1>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Interactive multi-agent graph · Drag to pan</div>
           </div>
           <select
             className="input-field"
@@ -212,69 +183,42 @@ export const WorkflowStudio: React.FC = () => {
               </button>
             </>
           ) : workflow?.status === "paused" ? (
-            <button type="button" className="btn-primary btn-sm" onClick={() => runAction("resume")} disabled={actionBusy}>
+            <button type="button" className="btn-accent btn-sm" onClick={() => runAction("resume")} disabled={actionBusy}>
               <Play size={13} /> Resume
             </button>
           ) : (
             <button
               type="button"
-              className="btn-primary btn-sm"
+              className="btn-accent btn-sm"
               onClick={() => runAction("start")}
               disabled={actionBusy || workflow?.status === "completed"}
             >
-              <Play size={13} /> {workflow?.status === "completed" ? "Execution Completed" : "Start Execution"}
+              <Play size={13} /> {workflow?.status === "completed" ? "Completed" : "Run Pipeline"}
             </button>
           )}
-          <button type="button" className="btn-secondary btn-sm" onClick={() => loadWorkflow(selectedProjectId)} aria-label="Refresh graph">
+          <button type="button" className="btn-secondary btn-sm" onClick={() => loadWorkflow(selectedProjectId)} aria-label="Refresh">
             <RotateCcw size={13} />
           </button>
         </div>
       </div>
 
-      {/* Inline Human Approval Banner */}
       {pendingApproval && (
-        <div
-          className="card"
-          style={{
-            padding: "14px 18px",
-            background: "var(--warning-light)",
-            border: "1px solid #FCD34D",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: 12,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <ShieldCheck size={20} color="var(--warning)" />
-            <div>
-              <div style={{ fontSize: 13.5, fontWeight: 700 }}>{pendingApproval.title}</div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{pendingApproval.description}</div>
-            </div>
+        <div className="ink-panel" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--primary-accent)" }}>Approval Gate Pending</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{pendingApproval.title}</div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              className="btn-primary btn-sm"
-              onClick={() => handleResolveApproval(pendingApproval.id, "approved")}
-              disabled={actionBusy}
-            >
-              <CheckCircle2 size={13} /> Approve & Continue
+            <button type="button" className="btn-accent btn-sm" onClick={() => handleResolveApproval(pendingApproval.id, "approved")} disabled={actionBusy}>
+              Approve &amp; Continue
             </button>
-            <button
-              type="button"
-              className="btn-danger btn-sm"
-              onClick={() => handleResolveApproval(pendingApproval.id, "rejected")}
-              disabled={actionBusy}
-            >
-              <XCircle size={13} /> Reject
+            <button type="button" className="btn-danger btn-sm" onClick={() => handleResolveApproval(pendingApproval.id, "rejected")} disabled={actionBusy}>
+              Reject
             </button>
           </div>
         </div>
       )}
 
-      {/* Interactive Canvas + Inspector */}
       <div className="grid-main-aside">
         <div
           className="card"
@@ -283,10 +227,9 @@ export const WorkflowStudio: React.FC = () => {
             height: 540,
             position: "relative",
             overflow: "hidden",
-            backgroundColor: "#040814",
-            backgroundImage:
-              "radial-gradient(rgba(96, 165, 250, 0.22) 1px, transparent 1px), radial-gradient(ellipse 60% 50% at 30% 30%, rgba(59, 130, 246, 0.12), transparent 70%)",
-            backgroundSize: "24px 24px, 100% 100%",
+            backgroundColor: "#08090C",
+            backgroundImage: "radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
             cursor: "grab",
             userSelect: "none",
           }}
@@ -301,12 +244,8 @@ export const WorkflowStudio: React.FC = () => {
               y: dragRef.current.origY + (e.clientY - dragRef.current.startY),
             });
           }}
-          onMouseUp={() => {
-            dragRef.current.dragging = false;
-          }}
-          onMouseLeave={() => {
-            dragRef.current.dragging = false;
-          }}
+          onMouseUp={() => { dragRef.current.dragging = false; }}
+          onMouseLeave={() => { dragRef.current.dragging = false; }}
         >
           <div
             style={{
@@ -317,16 +256,13 @@ export const WorkflowStudio: React.FC = () => {
               height: 800,
             }}
           >
-            {/* Dynamic Animated SVG Edges from workflow.edges */}
             <svg width={2200} height={800} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
               <defs>
-                <linearGradient id="synapse-edge-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#3B82F6" />
-                  <stop offset="50%" stopColor="#8B5CF6" />
-                  <stop offset="100%" stopColor="#06B6D4" />
-                </linearGradient>
-                <marker id="synapse-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                  <path d="M0,0 L8,4 L0,8 Z" fill="#22D3EE" />
+                <marker id="synapse-arrow-mint" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <path d="M0,0 L7,3.5 L0,7 Z" fill="#7C5CFF" />
+                </marker>
+                <marker id="synapse-arrow-muted" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <path d="M0,0 L7,3.5 L0,7 Z" fill="rgba(255,255,255,0.35)" />
                 </marker>
               </defs>
               {edges.map((edge: any) => {
@@ -335,32 +271,32 @@ export const WorkflowStudio: React.FC = () => {
                 const src = nodeMap.get(srcKey);
                 const tgt = nodeMap.get(tgtKey);
                 if (!src || !tgt) return null;
-                const x1 = (src.position_x || 0) + 210;
+                const x1 = (src.position_x || 0) + 216;
                 const y1 = (src.position_y || 0) + 46;
                 const x2 = (tgt.position_x || 0);
                 const y2 = (tgt.position_y || 0) + 46;
-                const isLive = src.status === "completed" || src.status === "running";
+                const isActive = src.status === "running" || tgt.status === "running";
+                const isDone = src.status === "completed";
                 return (
-                  <g key={edge.id || `${srcKey}-${tgtKey}`}>
-                    <line
-                      x1={x1}
-                      y1={y1}
-                      x2={x2}
-                      y2={y2}
-                      stroke={isLive ? "url(#synapse-edge-grad)" : "rgba(148, 163, 184, 0.3)"}
-                      strokeWidth={isLive ? 2.5 : 1.5}
-                      className={isLive ? "edge-animated" : undefined}
-                      markerEnd="url(#synapse-arrow)"
-                    />
-                  </g>
+                  <line
+                    key={edge.id || `${srcKey}-${tgtKey}`}
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke={isActive || isDone ? "#7C5CFF" : "rgba(255,255,255,0.22)"}
+                    strokeWidth={isActive ? 2.4 : isDone ? 1.8 : 1.3}
+                    className={isActive ? "edge-animated" : undefined}
+                    markerEnd={isActive || isDone ? "url(#synapse-arrow-mint)" : "url(#synapse-arrow-muted)"}
+                  />
                 );
               })}
             </svg>
 
-            {/* Workflow Nodes */}
             {nodes.map((node: any) => {
-              const style = statusColors[node.status] || statusColors.pending;
               const isSelected = selectedNode?.id === node.id;
+              const isRunning = node.status === "running";
+              const isCompleted = node.status === "completed";
               return (
                 <button
                   key={node.id}
@@ -370,26 +306,29 @@ export const WorkflowStudio: React.FC = () => {
                     position: "absolute",
                     left: node.position_x || 0,
                     top: node.position_y || 0,
-                    width: 210,
-                    padding: "12px 14px",
-                    borderRadius: 12,
-                    background: style.bg,
-                    border: isSelected ? "2px solid var(--primary-accent)" : `1.5px solid ${style.border}`,
-                    boxShadow: isSelected ? "0 0 0 4px var(--primary-ring)" : "var(--shadow-sm)",
+                    width: 216,
+                    padding: "13px 15px",
+                    borderRadius: 14,
+                    background: isSelected ? "#181E29" : "#12151C",
+                    color: "#FFFFFF",
+                    border: isSelected
+                      ? "1.5px solid #7C5CFF"
+                      : isCompleted
+                      ? "1px solid rgba(16, 229, 147, 0.35)"
+                      : "1px solid rgba(255, 255, 255, 0.12)",
+                    boxShadow: isSelected ? "0 8px 28px rgba(16, 229, 147, 0.18)" : "0 6px 18px rgba(0, 0, 0, 0.45)",
                     textAlign: "left",
                     cursor: "pointer",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginBottom: 6 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                      {(node.agent_role || "").replace(/_/g, " ")}
-                    </span>
-                    <span className={`badge ${style.badge}`} style={{ fontSize: 10, padding: "1px 6px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <AgentGlyph role={node.agent_role} size={18} active={isRunning || isSelected || isCompleted} />
+                    <span className={`badge ${isRunning || isCompleted ? "badge-success" : "badge-neutral"}`} style={{ fontSize: 10 }}>
                       {node.status}
                     </span>
                   </div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text-primary)" }}>{node.title || node.label}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25 }}>{node.title || node.label}</div>
+                  <div className="tabular-nums" style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 5 }}>
                     {node.duration_ms ? `${(node.duration_ms / 1000).toFixed(2)}s` : "Queued"}
                   </div>
                 </button>
@@ -397,100 +336,64 @@ export const WorkflowStudio: React.FC = () => {
             })}
           </div>
 
-          {/* Zoom Controls */}
-          <div
-            style={{
-              position: "absolute",
-              left: 14,
-              bottom: 14,
-              display: "flex",
-              gap: 6,
-              background: "rgba(15, 23, 42, 0.88)",
-              backdropFilter: "blur(10px)",
-              padding: 6,
-              borderRadius: 10,
-              border: "1px solid var(--border-color)",
-              boxShadow: "var(--shadow-md)",
-            }}
-          >
-            <button type="button" className="btn-ghost btn-sm" onClick={() => setZoom((z) => Math.min(1.4, z + 0.1))} aria-label="Zoom in">
-              <ZoomIn size={14} />
-            </button>
-            <button type="button" className="btn-ghost btn-sm" onClick={() => setZoom((z) => Math.max(0.45, z - 0.1))} aria-label="Zoom out">
-              <ZoomOut size={14} />
-            </button>
-            <button
-              type="button"
-              className="btn-ghost btn-sm"
-              onClick={() => {
-                setZoom(0.75);
-                setPan({ x: 20, y: 20 });
-              }}
-              aria-label="Reset view"
-            >
-              <Maximize2 size={14} />
-            </button>
+          <div style={{ position: "absolute", left: 14, bottom: 14, display: "flex", gap: 4, background: "#14171F", padding: 5, borderRadius: 10, border: "1px solid var(--border-color)" }}>
+            <button type="button" className="btn-ghost btn-sm" onClick={() => setZoom((z) => Math.min(1.4, z + 0.1))} aria-label="Zoom in"><ZoomIn size={14} /></button>
+            <button type="button" className="btn-ghost btn-sm" onClick={() => setZoom((z) => Math.max(0.45, z - 0.1))} aria-label="Zoom out"><ZoomOut size={14} /></button>
+            <button type="button" className="btn-ghost btn-sm" onClick={() => { setZoom(0.75); setPan({ x: 20, y: 20 }); }} aria-label="Reset view"><Maximize2 size={14} /></button>
           </div>
 
-          <div
-            style={{
-              position: "absolute",
-              right: 14,
-              bottom: 14,
-              background: "rgba(15, 23, 42, 0.88)",
-              backdropFilter: "blur(10px)",
-              padding: "8px 12px",
-              borderRadius: 10,
-              border: "1px solid var(--border-color)",
-              fontSize: 12,
-              boxShadow: "var(--shadow-md)",
-            }}
-          >
-            <div>Status: <strong style={{ textTransform: "capitalize" }}>{workflow?.status || "pending"}</strong></div>
-            <div style={{ color: "var(--text-muted)" }}>Step: <strong style={{ color: "var(--primary-accent)" }}>{workflow?.current_step || "Queued"}</strong></div>
+          <div style={{ position: "absolute", right: 14, bottom: 14, background: "#14171F", padding: "8px 14px", borderRadius: 10, border: "1px solid var(--border-color)", fontSize: 12 }}>
+            Status: <strong style={{ color: "var(--primary-accent)", textTransform: "capitalize" }}>{workflow?.status || "pending"}</strong> · {workflow?.current_step || "Queued"}
           </div>
         </div>
 
-        {/* Node Inspector */}
         <div className="card">
           {selectedNode ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <span className={`badge ${(statusColors[selectedNode.status] || statusColors.pending).badge}`}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Stage Inspector</span>
+                <span className={`badge ${selectedNode.status === "completed" || selectedNode.status === "running" ? "badge-success" : "badge-neutral"}`}>
                   {selectedNode.status}
                 </span>
-                <h2 style={{ fontSize: 17, fontWeight: 700, marginTop: 8 }}>{selectedNode.title || selectedNode.label}</h2>
-                <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-                  Role: {(selectedNode.agent_role || "").replace(/_/g, " ")}
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 42, height: 42, borderRadius: 12, background: "var(--primary-light)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <AgentGlyph role={selectedNode.agent_role} size={22} active />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: 17, fontWeight: 700 }}>{selectedNode.title || selectedNode.label}</h2>
+                  <div style={{ fontSize: 12.5, color: "var(--text-muted)", textTransform: "capitalize" }}>
+                    {(selectedNode.agent_role || "").replace(/_/g, " ")}
+                  </div>
                 </div>
               </div>
 
-              <div style={{ padding: 12, borderRadius: 10, background: "var(--bg-main)", border: "1px solid var(--border-color)" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)" }}>EXECUTION DURATION</div>
-                <div style={{ fontSize: 18, fontWeight: 800, marginTop: 2 }}>
-                  {selectedNode.duration_ms ? `${(selectedNode.duration_ms / 1000).toFixed(2)}s` : "Not executed yet"}
+              <div style={{ padding: 14, borderRadius: 12, background: "#161922", border: "1px solid var(--border-color)" }}>
+                <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>Execution Duration</div>
+                <div className="tabular-nums" style={{ fontSize: 22, fontWeight: 800, marginTop: 2 }}>
+                  {selectedNode.duration_ms ? `${(selectedNode.duration_ms / 1000).toFixed(2)}s` : "—"}
                 </div>
               </div>
 
-              <div style={{ fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                This stage executes autonomously, commits its generated artifacts to the project repository,
-                and logs a traceable task and audit record.
-              </div>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                Autonomous stage commits versioned artifacts to the project repository and logs telemetry to the audit trail.
+              </p>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 8, borderTop: "1px solid var(--border-color)" }}>
-                <Link to={`/app/code?project=${selectedProjectId}`} className="btn-secondary" style={{ width: "100%" }}>
-                  <Code2 size={14} /> View Generated Code
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <Link to={`/app/code?project=${selectedProjectId}`} className="btn-secondary" style={{ width: "100%", justifyContent: "space-between" }}>
+                  <span>View Generated Code</span> <ArrowUpRight size={14} />
                 </Link>
-                <Link to={`/app/testing?project=${selectedProjectId}`} className="btn-secondary" style={{ width: "100%" }}>
-                  <FlaskConical size={14} /> Inspect QA Assertions
+                <Link to={`/app/testing?project=${selectedProjectId}`} className="btn-secondary" style={{ width: "100%", justifyContent: "space-between" }}>
+                  <span>QA Assertions</span> <ArrowUpRight size={14} />
                 </Link>
-                <Link to={`/app/security?project=${selectedProjectId}`} className="btn-secondary" style={{ width: "100%" }}>
-                  <ShieldCheck size={14} /> View Security Audit
+                <Link to={`/app/security?project=${selectedProjectId}`} className="btn-secondary" style={{ width: "100%", justifyContent: "space-between" }}>
+                  <span>Security Audit</span> <ArrowUpRight size={14} />
                 </Link>
               </div>
             </div>
           ) : (
-            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Select a node on the canvas to inspect its details.</div>
+            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Select a node to inspect its details.</div>
           )}
         </div>
       </div>

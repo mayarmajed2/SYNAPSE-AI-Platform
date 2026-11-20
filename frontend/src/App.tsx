@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary";
+import { AmbientCanvas } from "./components/ui/AmbientCanvas";
 import { ToastProvider } from "./context/ToastContext";
 import { AuthProvider } from "./context/AuthContext";
 import { AppLayout } from "./components/layout/AppLayout";
@@ -31,6 +32,8 @@ export function App() {
     <ErrorBoundary>
       <ToastProvider>
         <AuthProvider>
+          <AmbientCanvas />
+          <div style={{ position: "relative", zIndex: 1 }}>
           <BrowserRouter basename={import.meta.env.BASE_URL}>
             <Routes>
               {/* Public Commercial & Auth Routes */}
@@ -80,6 +83,7 @@ export function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
+          </div>
         </AuthProvider>
       </ToastProvider>
     </ErrorBoundary>

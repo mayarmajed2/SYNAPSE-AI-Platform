@@ -200,7 +200,7 @@ export const SecurityCenter: React.FC = () => {
                   </div>
                   <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>{f.description}</p>
                   {f.suggested_fix && (
-                    <div style={{ fontSize: 12.5, padding: "8px 12px", borderRadius: 8, background: "rgba(15, 23, 42, 0.75)", border: "1px solid var(--border-color)" }}>
+                    <div style={{ fontSize: 12.5, padding: "8px 12px", borderRadius: 2, background: "var(--bg-card)", border: "1px solid var(--border-color)" }}>
                       <strong>Remediation:</strong> {f.suggested_fix}
                     </div>
                   )}

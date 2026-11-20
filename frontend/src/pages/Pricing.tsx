@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Check, Cpu, ArrowRight, Sparkles, Building2, Shield } from "lucide-react";
+import { Check, ArrowRight, Sparkles, Building2, Shield } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { api } from "../services/api";
+import { SynapseLogo } from "../components/ui/SynapseLogo";
 
 const PLANS = [
   {
@@ -97,32 +98,17 @@ export const Pricing: React.FC = () => {
     <div style={{ minHeight: "100vh", background: "var(--bg-main)", color: "var(--text-primary)" }}>
       <header
         style={{
-          background: "rgba(8, 13, 28, 0.88)",
-          backdropFilter: "blur(14px)",
-          borderBottom: "1px solid var(--border-color)",
-          padding: "0 24px",
-          height: 64,
+          background: "var(--bg-main)",
+          borderBottom: "1.5px solid var(--border-strong)",
+          padding: "0 28px",
+          height: 60,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
         }}
       >
-        <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: "linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#FFFFFF",
-            }}
-          >
-            <Cpu size={16} />
-          </div>
-          <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>SYNAPSE</span>
+        <Link to="/" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+          <SynapseLogo size={32} showWordmark />
         </Link>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -152,11 +138,11 @@ export const Pricing: React.FC = () => {
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 6,
+              gap: 4,
               padding: 4,
-              background: "rgba(15, 23, 42, 0.85)",
-              border: "1px solid var(--border-color)",
-              borderRadius: 999,
+              background: "var(--bg-subtle)",
+              border: "1px solid var(--border-strong)",
+              borderRadius: 3,
             }}
           >
             <button

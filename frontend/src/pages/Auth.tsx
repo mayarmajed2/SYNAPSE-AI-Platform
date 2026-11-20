@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Cpu, ArrowRight, Play, ShieldCheck, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowRight, Play, ShieldCheck, CheckCircle2, AlertCircle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { SynapseLogo } from "../components/ui/SynapseLogo";
 
 export const Auth: React.FC<{ mode: "login" | "register" }> = ({ mode }) => {
   const { login, register, demoLogin } = useAuth();
@@ -70,38 +71,21 @@ export const Auth: React.FC<{ mode: "login" | "register" }> = ({ mode }) => {
         background: "var(--bg-main)",
       }}
     >
-      {/* Left Brand Panel */}
+      {/* Left Deep-Ink Editorial Panel */}
       <div
         className="hide-mobile"
         style={{
-          background: "linear-gradient(155deg, #0F172A 0%, #1E293B 60%, #1E3A8A 100%)",
-          color: "#F8FAFC",
+          background: "#111110",
+          color: "#F4F2EC",
           padding: "48px 44px",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
+          borderRight: "1.5px solid #111110",
         }}
       >
-        <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: "#FFFFFF" }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: "var(--primary-accent)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Cpu size={19} />
-          </div>
-          <div>
-            <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}>SYNAPSE</div>
-            <div style={{ fontSize: 10, color: "#93C5FD", fontWeight: 600, letterSpacing: "0.08em" }}>
-              AUTONOMOUS AI ENG
-            </div>
-          </div>
+        <Link to="/" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+          <SynapseLogo size={38} showWordmark subtitle="AUTONOMOUS AI ENG" />
         </Link>
 
         <div style={{ maxWidth: 420 }}>
@@ -126,8 +110,8 @@ export const Auth: React.FC<{ mode: "login" | "register" }> = ({ mode }) => {
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#94A3B8" }}>
-          <ShieldCheck size={15} color="#60A5FA" />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-muted)" }}>
+          <ShieldCheck size={15} color="#FF4D8D" />
           JWT-authenticated sessions · PBKDF2-SHA256 credential protection
         </div>
       </div>

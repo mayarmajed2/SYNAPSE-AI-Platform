@@ -1,39 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  PlusCircle,
-  Play,
-  ArrowRight,
-  FolderKanban,
-  Users,
-  Clock,
-  DollarSign,
-  CheckCircle2,
-  Circle,
-  Sparkles,
-  FileCode2,
-  ShieldCheck,
-  FlaskConical,
-  Layers,
-  BookOpen,
-  Rocket,
-  Cpu,
-  X,
-} from "lucide-react";
+import { ArrowUpRight, Plus, X, Check } from "lucide-react";
 import { api } from "../services/api";
+import { AgentGlyph } from "../components/ui/AgentGlyph";
 import { ErrorBanner, EmptyState, LoadingSkeleton } from "../components/ui/PageState";
 
-const STAGES = [
-  { name: "Idea Vision", agent: "Supervisor", icon: Sparkles, color: "#4F46E5" },
-  { name: "PRD & Stories", agent: "Product Mgr", icon: BookOpen, color: "#2563EB" },
-  { name: "Architecture", agent: "Architect", icon: Layers, color: "#7C3AED" },
-  { name: "Backend API", agent: "Backend Dev", icon: Cpu, color: "#0284C7" },
-  { name: "Frontend UI", agent: "Frontend Dev", icon: FileCode2, color: "#DB2777" },
-  { name: "Code Review", agent: "Reviewer", icon: CheckCircle2, color: "#D97706" },
-  { name: "QA Suite", agent: "QA Engineer", icon: FlaskConical, color: "#059669" },
-  { name: "Security SAST", agent: "Security", icon: ShieldCheck, color: "#DC2626" },
-  { name: "Delivery Docs", agent: "Docs Agent", icon: BookOpen, color: "#0D9488" },
-  { name: "Deployment", agent: "DevOps Agent", icon: Rocket, color: "#EA580C" },
+const PIPELINE_SEQUENCE = [
+  { num: "01", name: "Idea Vision", role: "supervisor", label: "Supervisor" },
+  { num: "02", name: "PRD & Stories", role: "product_manager", label: "Product Mgr" },
+  { num: "03", name: "Architecture", role: "system_architect", label: "Architect" },
+  { num: "04", name: "Backend API", role: "backend_developer", label: "Backend Dev" },
+  { num: "05", name: "Frontend UI", role: "frontend_developer", label: "Frontend Dev" },
+  { num: "06", name: "Code Review", role: "code_reviewer", label: "Reviewer" },
+  { num: "07", name: "QA Suite", role: "qa_engineer", label: "QA Engineer" },
+  { num: "08", name: "Security SAST", role: "security_agent", label: "Security" },
+  { num: "09", name: "Delivery Docs", role: "documentation_agent", label: "Docs Agent" },
+  { num: "10", name: "Deployment", role: "deployment_agent", label: "DevOps Agent" },
 ];
 
 export const Overview: React.FC = () => {
@@ -83,9 +65,7 @@ export const Overview: React.FC = () => {
     } catch {}
   };
 
-  if (loading) {
-    return <LoadingSkeleton rows={2} />;
-  }
+  if (loading) return <LoadingSkeleton rows={2} />;
 
   const totalProjects = overview?.total_projects ?? projects.length;
   const activeProjects = overview?.active_projects ?? projects.filter((p) => p.status === "in_progress").length;
@@ -98,7 +78,7 @@ export const Overview: React.FC = () => {
   const onboardingSteps = [
     {
       done: Boolean(settings?.groq_configured),
-      label: "Connect Groq LLM API key (or run in offline template mode)",
+      label: "Connect Groq LLM API key (or run in offline mode)",
       actionLabel: "Configure",
       to: "/app/settings",
     },
@@ -110,339 +90,312 @@ export const Overview: React.FC = () => {
     },
     {
       done: projects.some((p) => p.status === "completed"),
-      label: "Monitor all 10 agents in Workflow Studio & download codebase",
+      label: "Inspect live flow in Workflow Studio & export ZIP",
       actionLabel: "Open Studio",
       to: "/app/workflows",
     },
   ];
 
   return (
-    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 26 }}>
       {errorMsg && <ErrorBanner message={errorMsg} onRetry={loadData} />}
 
-      {/* Executive Command Center Hero Banner */}
-      <div
-        className="card hero-command-card"
+      {/* Sleek Modern Hero Header */}
+      <section
         style={{
-          padding: "26px 28px",
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-end",
           justifyContent: "space-between",
           flexWrap: "wrap",
-          gap: 16,
+          gap: 18,
         }}
       >
         <div>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 11.5, fontWeight: 700, color: "#34D399", letterSpacing: "0.06em", marginBottom: 8 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <span className="pulse-indicator" />
-            MULTI-AGENT COMMAND CENTER · OPERATIONAL
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--primary-accent)" }}>
+              {agents.length || 10} autonomous agents online
+            </span>
           </div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em", color: "#F8FAFC" }}>
-            SYNAPSE Autonomous Engineering HQ
+          <h1 style={{ fontSize: "clamp(28px, 3.6vw, 38px)", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+            Command Center
           </h1>
-          <p style={{ fontSize: 13.5, color: "#CBD5E1", marginTop: 6, maxWidth: 620 }}>
-            Orchestrate {agents.length || 10} specialized AI agents collaborating across architecture, code generation,
-            automated QA, SAST security, and release delivery.
+          <p style={{ fontSize: 14.5, color: "var(--text-secondary)", marginTop: 6, maxWidth: 580 }}>
+            Orchestrate architecture, full-stack code generation, sandbox QA, and security audits in real time.
           </p>
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <Link to="/app/projects/new" className="btn-primary">
-            <PlusCircle size={15} /> New Software Project
+          <Link to="/app/projects/new" className="btn-accent">
+            <Plus size={15} /> New Project
           </Link>
           <Link to="/app/workflows" className="btn-secondary">
-            <Play size={14} /> Open Workflow Studio
+            Workflow Studio <ArrowUpRight size={14} />
           </Link>
         </div>
-      </div>
+      </section>
 
-      {/* First-Time Onboarding Checklist */}
-      {showOnboarding && (
-        <div className="card" style={{ padding: "18px 22px", borderLeft: "3px solid var(--primary-accent)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>Quick-Start Onboarding</div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                Complete these steps to ship your first governed autonomous build.
-              </div>
-            </div>
-            <button type="button" className="btn-ghost btn-sm" onClick={dismissOnboarding} aria-label="Dismiss onboarding">
-              <X size={15} />
-            </button>
+      {/* Clean Modern Metrics Strip */}
+      <section className="ledger-kpi">
+        <div className="ledger-kpi-cell">
+          <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--text-secondary)" }}>Total Projects</div>
+          <div className="tabular-nums" style={{ fontSize: 34, fontWeight: 800, marginTop: 8, lineHeight: 1 }}>
+            {totalProjects}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {onboardingSteps.map((step) => (
-              <div
-                key={step.label}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  background: "var(--bg-main)",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
-                  {step.done ? (
-                    <CheckCircle2 size={16} color="var(--success)" />
-                  ) : (
-                    <Circle size={16} color="var(--text-muted)" />
-                  )}
-                  <span style={{ color: step.done ? "var(--text-muted)" : "var(--text-primary)", textDecoration: step.done ? "line-through" : "none" }}>
-                    {step.label}
-                  </span>
-                </div>
-                <Link to={step.to} className="btn-secondary btn-sm">
-                  {step.actionLabel}
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* KPI Strip */}
-      <div className="grid-kpi">
-        <div className="card">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>TOTAL PROJECTS</span>
-            <FolderKanban size={17} color="var(--primary-accent)" />
-          </div>
-          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em" }}>{totalProjects}</div>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
+          <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 8 }}>
             <strong style={{ color: "var(--primary-accent)" }}>{activeProjects} active</strong> in pipeline
           </div>
         </div>
 
-        <div className="card">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>AGENT TASKS</span>
-            <Users size={17} color="var(--indigo-accent)" />
+        <div className="ledger-kpi-cell">
+          <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--text-secondary)" }}>Agent Executions</div>
+          <div className="tabular-nums" style={{ fontSize: 34, fontWeight: 800, marginTop: 8, lineHeight: 1 }}>
+            {totalTasks}
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em" }}>{totalTasks}</div>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
-            Completed with <strong style={{ color: "var(--success)" }}>{successRate}% success</strong>
-          </div>
-        </div>
-
-        <div className="card">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>AVG STAGE LATENCY</span>
-            <Clock size={17} color="#0284C7" />
-          </div>
-          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em" }}>{avgExec.toFixed(2)}s</div>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
-            Measured per autonomous stage
+          <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 8 }}>
+            <strong style={{ color: "var(--primary-accent)" }}>{successRate}%</strong> success rate
           </div>
         </div>
 
-        <div className="card">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>AI TOKENS & COST</span>
-            <DollarSign size={17} color="var(--success)" />
+        <div className="ledger-kpi-cell">
+          <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--text-secondary)" }}>Avg Stage Latency</div>
+          <div className="tabular-nums" style={{ fontSize: 34, fontWeight: 800, marginTop: 8, lineHeight: 1 }}>
+            {avgExec.toFixed(2)}<span style={{ fontSize: 18, color: "var(--text-muted)", fontWeight: 600 }}>s</span>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em" }}>${Number(totalCost).toFixed(4)}</div>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
-            {Number(totalTokens).toLocaleString()} total tokens consumed
+          <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 8 }}>
+            Per completed agent stage
           </div>
         </div>
-      </div>
 
-      {/* 10-Stage Autonomous Lifecycle */}
-      <div className="card">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
-          <div>
-            <h2 style={{ fontSize: 15.5, fontWeight: 700 }}>The Autonomous 10-Stage Software Lifecycle</h2>
-            <p style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
-              Every submitted idea flows through these 10 specialized engineering agents with full traceability.
-            </p>
+        <div className="ledger-kpi-cell">
+          <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--text-secondary)" }}>Inference Spend</div>
+          <div className="tabular-nums" style={{ fontSize: 34, fontWeight: 800, marginTop: 8, lineHeight: 1 }}>
+            ${Number(totalCost).toFixed(4)}
           </div>
-          <Link to="/app/agents" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--primary-accent)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
-            Inspect Agent Workforce <ArrowRight size={13} />
-          </Link>
+          <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 8 }}>
+            {Number(totalTokens).toLocaleString()} tokens used
+          </div>
         </div>
+      </section>
 
-        <div className="grid-pipeline">
-          {STAGES.map((stage, idx) => {
-            const Icon = stage.icon;
-            return (
-              <div
-                key={stage.name}
-                style={{
-                  padding: "12px",
-                  borderRadius: 10,
-                  border: "1px solid var(--border-color)",
-                  background: "var(--bg-main)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 8,
-                    background: `${stage.color}14`,
-                    color: stage.color,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon size={16} />
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {idx + 1}. {stage.name}
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{stage.agent}</div>
-                </div>
+      {/* Main Asymmetric Split */}
+      <section className="grid-main-aside">
+        <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+          {/* Active Projects */}
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "18px 22px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 700 }}>Active Pipelines</h2>
+                <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>Autonomous software projects in flight</p>
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Bottom Split: Recent Projects + Workforce Fleet */}
-      <div className="grid-main-aside">
-        <div className="card">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div>
-              <h2 style={{ fontSize: 15.5, fontWeight: 700 }}>Recent Projects</h2>
-              <p style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>Autonomous software pipelines in flight</p>
+              <Link to="/app/projects" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--primary-accent)", textDecoration: "none" }}>
+                View all →
+              </Link>
             </div>
-            <Link to="/app/projects" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--primary-accent)", textDecoration: "none" }}>
-              View all →
-            </Link>
+
+            {projects.length === 0 ? (
+              <div style={{ padding: 20 }}>
+                <EmptyState
+                  icon={<Plus size={20} />}
+                  title="No projects yet"
+                  description="Start a new build to dispatch all 10 specialist agents."
+                  action={<Link to="/app/projects/new" className="btn-accent">New Project</Link>}
+                />
+              </div>
+            ) : (
+              <div>
+                {projects.slice(0, 5).map((p, idx) => (
+                  <div
+                    key={p.id}
+                    style={{
+                      padding: "16px 22px",
+                      borderBottom: idx < Math.min(projects.length, 5) - 1 ? "1px solid var(--border-color)" : "none",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: 14,
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <Link to={`/app/projects/${p.id}`} style={{ fontSize: 15, fontWeight: 700, textDecoration: "none", color: "#FFFFFF" }}>
+                        {p.name}
+                      </Link>
+                      <p style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 3, maxWidth: 460, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {p.description || p.idea}
+                      </p>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ width: 92 }}>
+                        <div className="tabular-nums" style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-secondary)", textAlign: "right", marginBottom: 4 }}>
+                          {p.execution_progress}%
+                        </div>
+                        <div style={{ height: 4, borderRadius: 99, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${p.execution_progress}%`, background: "var(--primary-accent)", borderRadius: 99 }} />
+                        </div>
+                      </div>
+                      <span className={`badge ${p.status === "completed" ? "badge-success" : p.status === "failed" ? "badge-error" : "badge-primary"}`}>
+                        {p.status}
+                      </span>
+                      <Link to={`/app/workflows?project=${p.id}`} className="btn-secondary btn-sm">
+                        Studio <ArrowUpRight size={13} />
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {projects.length === 0 ? (
-            <EmptyState
-              icon={<FolderKanban size={22} />}
-              title="No software projects yet"
-              description="Submit a product idea to trigger the 10-agent engineering pipeline and generate your first codebase."
-              action={
-                <Link to="/app/projects/new" className="btn-primary">
-                  <PlusCircle size={14} /> Create First Project
-                </Link>
-              }
-            />
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {projects.slice(0, 5).map((p) => (
-                <div
-                  key={p.id}
-                  style={{
-                    padding: "14px 16px",
-                    borderRadius: 10,
-                    border: "1px solid var(--border-color)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    flexWrap: "wrap",
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 200 }}>
-                    <Link
-                      to={`/app/projects/${p.id}`}
-                      style={{ fontSize: 14, fontWeight: 700, textDecoration: "none", color: "var(--text-primary)" }}
-                    >
-                      {p.name}
-                    </Link>
-                    <p style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 460 }}>
-                      {p.description || p.idea}
-                    </p>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 90 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textAlign: "right", marginBottom: 4 }}>
-                        {p.execution_progress}%
-                      </div>
-                      <div style={{ height: 5, borderRadius: 99, background: "var(--bg-subtle)", overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${p.execution_progress}%`, background: "var(--success)" }} />
-                      </div>
-                    </div>
-                    <span className={`badge ${p.status === "completed" ? "badge-success" : p.status === "failed" ? "badge-error" : "badge-primary"}`}>
-                      {p.status}
-                    </span>
-                    <Link to={`/app/workflows?project=${p.id}`} className="btn-secondary btn-sm">
-                      Studio →
-                    </Link>
-                  </div>
-                </div>
-              ))}
+          {/* 10-Stage Autonomous Lifecycle */}
+          <div className="card">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 700 }}>10-Stage Autonomous Lifecycle</h2>
+                <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>End-to-end orchestration across your AI engineering team</p>
+              </div>
+              <Link to="/app/agents" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--primary-accent)", textDecoration: "none" }}>
+                Inspect agents →
+              </Link>
             </div>
-          )}
+
+            <div className="grid-pipeline">
+              {PIPELINE_SEQUENCE.map((stage) => {
+                const liveAgent = agents.find((a) => a.role === stage.role);
+                const isWorking = liveAgent?.status === "working";
+                return (
+                  <div
+                    key={stage.num}
+                    className="stage-tile"
+                    style={{
+                      padding: 14,
+                      borderRadius: 12,
+                      border: isWorking ? "1px solid var(--primary-accent)" : "1px solid var(--border-color)",
+                      background: isWorking ? "var(--primary-light)" : "#161922",
+                      cursor: "default",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: isWorking ? "var(--primary-accent)" : "var(--text-muted)" }}>
+                        {stage.num}
+                      </span>
+                      <AgentGlyph role={stage.role} size={20} active={isWorking} />
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>{stage.name}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>{stage.label}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
-        <div className="card">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <div>
+        {/* Right Column: Onboarding + Live Agent Roster */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {showOnboarding && (
+            <div className="ink-panel">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#FFFFFF" }}>Quick-Start Checklist</span>
+                <button type="button" onClick={dismissOnboarding} aria-label="Dismiss" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>
+                  <X size={15} />
+                </button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {onboardingSteps.map((step) => (
+                  <div
+                    key={step.label}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid var(--border-color)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 12.5 }}>
+                      <span
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: "50%",
+                          background: step.done ? "var(--primary-light)" : "rgba(255,255,255,0.06)",
+                          color: step.done ? "var(--primary-accent)" : "var(--text-muted)",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {step.done ? <Check size={11} /> : "•"}
+                      </span>
+                      <span style={{ color: step.done ? "var(--text-muted)" : "var(--text-primary)", textDecoration: step.done ? "line-through" : "none" }}>
+                        {step.label}
+                      </span>
+                    </div>
+                    <Link to={step.to} className="btn-secondary btn-sm">
+                      {step.actionLabel}
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <h2 style={{ fontSize: 15.5, fontWeight: 700 }}>Workforce Fleet</h2>
-              <p style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
-                {agents.length || 10} Coordinated AI Specialists
-              </p>
+              <Link to="/app/agents" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--primary-accent)", textDecoration: "none" }}>
+                Manage →
+              </Link>
             </div>
-            <Link to="/app/agents" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--primary-accent)", textDecoration: "none" }}>
-              Manage →
-            </Link>
-          </div>
-
-          {agents.length === 0 ? (
-            <div style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center", padding: 24 }}>
-              No agents registered yet.
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {agents.slice(0, 6).map((a) => (
-                <div
-                  key={a.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "9px 11px",
-                    borderRadius: 9,
-                    background: "var(--bg-main)",
-                    border: "1px solid var(--border-color)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 8,
-                        background: "var(--primary-light)",
-                        color: "var(--primary-accent)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: 700,
-                        fontSize: 12,
-                      }}
-                    >
-                      {a.name?.[0] || "A"}
+            <div>
+              {agents.slice(0, 6).map((a, idx) => {
+                const isWorking = a.status === "working";
+                return (
+                  <div
+                    key={a.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "12px 20px",
+                      borderBottom: idx < 5 ? "1px solid var(--border-color)" : "none",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: 10,
+                          background: isWorking ? "var(--primary-light)" : "#161922",
+                          border: "1px solid var(--border-color)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <AgentGlyph role={a.role} size={18} active={isWorking} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13.5, fontWeight: 600 }}>{a.name}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--text-muted)", textTransform: "capitalize" }}>
+                          {(a.display_name || a.role || "").replace(/_/g, " ")}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{a.name}</div>
-                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{a.display_name}</div>
-                    </div>
+                    <span className={`badge ${isWorking ? "badge-primary" : "badge-neutral"}`}>{a.status}</span>
                   </div>
-                  <span className={`badge ${a.status === "working" ? "badge-primary" : "badge-neutral"}`}>
-                    {a.status}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

@@ -47,7 +47,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           maxWidth: 440,
           width: "100%",
           padding: 24,
-          background: "#0F172A",
+          background: "#14171F",
           border: "1px solid var(--border-strong)",
           boxShadow: "var(--shadow-lg)",
         }}

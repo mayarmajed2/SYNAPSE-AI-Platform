@@ -133,17 +133,17 @@ export const Analytics: React.FC = () => {
         </div>
 
         {/* Clearly Labeled ROI Projection Simulator */}
-        <div className="card hero-command-card">
+        <div className="ink-panel">
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <Calculator size={16} color="#60A5FA" />
-            <h2 style={{ fontSize: 15.5, fontWeight: 700 }}>ROI Projection Simulator</h2>
+            <Calculator size={16} color="#FF4D8D" />
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: "#FFFFFF" }}>ROI Projection Simulator</h2>
           </div>
           <p style={{ fontSize: 12.5, color: "var(--text-secondary)", marginBottom: 16 }}>
             Interactive estimate comparing autonomous MVP builds against a \$8,500 traditional agency sprint baseline.
           </p>
 
           <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, marginBottom: 8 }}>
-            Projects shipped per month: <strong style={{ color: "#60A5FA" }}>{monthlyBuilds}</strong>
+            Projects shipped per month: <strong style={{ color: "#FF4D8D" }}>{monthlyBuilds}</strong>
           </label>
           <input
             type="range"
@@ -151,10 +151,10 @@ export const Analytics: React.FC = () => {
             max={20}
             value={monthlyBuilds}
             onChange={(e) => setMonthlyBuilds(Number(e.target.value))}
-            style={{ width: "100%", marginBottom: 18 }}
+            style={{ width: "100%", marginBottom: 18, accentColor: "#FF4D8D" }}
           />
 
-          <div style={{ padding: 14, borderRadius: 10, background: "rgba(6, 11, 24, 0.72)", border: "1px solid var(--border-color)" }}>
+          <div style={{ padding: 14, borderRadius: 12, background: "#0A0B0E", border: "1px solid var(--border-color)" }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)" }}>ESTIMATED MONTHLY ENGINEERING VALUE</div>
             <div style={{ fontSize: 28, fontWeight: 800, color: "var(--success)", marginTop: 4 }}>
               ${projectedSavings.toLocaleString()}

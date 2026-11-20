@@ -63,20 +63,19 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         {toasts.map((t) => {
           const border =
             t.type === "success"
-              ? "rgba(16, 185, 129, 0.45)"
+              ? "rgba(56, 189, 248, 0.42)"
               : t.type === "error"
-              ? "rgba(244, 63, 94, 0.45)"
-              : "rgba(59, 130, 246, 0.45)";
+              ? "rgba(251, 113, 133, 0.38)"
+              : "rgba(255, 255, 255, 0.16)";
           const iconColor =
-            t.type === "success" ? "var(--success)" : t.type === "error" ? "var(--error)" : "var(--primary-bright)";
+            t.type === "success" ? "var(--success)" : t.type === "error" ? "var(--error)" : "var(--primary-accent)";
           return (
             <div
               key={t.id}
               className="fade-in"
               style={{
                 pointerEvents: "auto",
-                background: "rgba(15, 23, 42, 0.94)",
-                backdropFilter: "blur(14px)",
+                background: "#151820",
                 border: `1px solid ${border}`,
                 borderRadius: 12,
                 padding: "12px 14px",
